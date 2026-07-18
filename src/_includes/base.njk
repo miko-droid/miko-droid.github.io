@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if title %}{{ title }} &middot; {{ site.name }}{% else %}{{ site.name }} &middot; Landscape Photography{% endif %}</title>
+  <meta name="description" content="{{ description or site.tagline }}">
+  <meta name="theme-color" content="#efede6">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+{%- set isAbout = page.url == "/about/" -%}
+<body class="{% if page.url == '/' %}is-home{% endif %}">
+
+  <header class="site-header" data-site-header>
+    <div class="wrap header-inner">
+      <a href="/" class="wordmark">MICHAEL ROBINSON</a>
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="nav-link{% if not isAbout %} is-active{% endif %}"{% if not isAbout %} aria-current="page"{% endif %}>PORTFOLIO</a>
+        <a href="/about/" class="nav-link{% if isAbout %} is-active{% endif %}"{% if isAbout %} aria-current="page"{% endif %}>ABOUT</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {{ content | safe }}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>ALL PHOTOGRAPHS &copy; {{ site.name | upper }} &middot; DO NOT USE WITHOUT PERMISSION</div>
+      <a class="footer-link" href="{{ site.instagram }}" target="_blank" rel="noopener">INSTAGRAM</a>
+    </div>
+  </footer>
+
+  <!-- Lightbox (populated by lightbox.js when a print is opened) -->
+  <div class="lightbox" data-lightbox hidden>
+    <img class="lightbox__img" data-lightbox-img src="" alt="" draggable="false">
+    <div class="lightbox__meta" data-lightbox-meta>
+      <div class="lightbox__title" data-lightbox-title></div>
+      <div class="lightbox__loc" data-lightbox-loc></div>
+      <div class="lightbox__story" data-lightbox-story hidden></div>
+      <div class="lightbox__count" data-lightbox-count></div>
+    </div>
+    <button class="lightbox__close" data-lightbox-close aria-label="Close">&times;</button>
+    <button class="lightbox__nav lightbox__nav--prev" data-lightbox-prev aria-label="Previous photograph">&lsaquo;</button>
+    <button class="lightbox__nav lightbox__nav--next" data-lightbox-next aria-label="Next photograph">&rsaquo;</button>
+  </div>
+
+  <script src="/js/flight.js" defer></script>
+  <script src="/js/transitions.js" defer></script>
+  <script src="/js/hero.js" defer></script>
+  <script src="/js/lightbox.js" defer></script>
+  <script src="/js/reveal.js" defer></script>
+</body>
+</html>

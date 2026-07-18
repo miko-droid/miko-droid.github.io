@@ -1,0 +1,72 @@
+---
+layout: base.njk
+description: "Landscape photography by Michael Robinson. Rainforest and waterfalls of the Scenic Rim, dawn and dusk over big country, and quiet water across Australia."
+---
+{#- Picks 3 varied hero works (collection 0/2/1, work 0/1/1) without assuming
+    that many collections or works actually exist — wraps via modulo so a
+    smaller portfolio degrades gracefully instead of crashing the build. -#}
+{%- set heroPicks = [[0, 0], [2, 1], [1, 1]] -%}
+{%- set heroes = [] -%}
+{%- for pick in heroPicks -%}
+  {%- set col = portfolio[pick[0] % portfolio.length] -%}
+  {%- set heroes = heroes.concat([col.works[pick[1] % col.works.length]]) -%}
+{%- endfor -%}
+
+<section class="hero" data-hero>
+  <div class="hero__sticky">
+    <div class="hero__frame" data-hero-frame>
+      <div class="hero__stage">
+        {#- Only the first slide loads with the page. The others sit behind it
+            for 9.5s before the slideshow needs them, so hero.js hydrates their
+            data-src/data-srcset after the window load event — that keeps two
+            full-viewport images out of the initial payload (matters on 4G). -#}
+        {%- for h in heroes %}
+        <img class="hero__slide{% if loop.first %} is-active{% endif %}"
+             {% if loop.first %}src="{{ h.display }}" srcset="{{ h.heroSrcset }}"{% else %}data-src="{{ h.display }}" data-srcset="{{ h.heroSrcset }}"{% endif %}
+             sizes="100vw" alt="" draggable="false"
+             data-hero-slide
+             data-cap-left="{{ h.title | upper }}"
+             data-cap-right="{{ h.meta | upper }}"
+             {% if not loop.first %}style="opacity:0"{% endif %}>
+        {%- endfor %}
+        <div class="hero__dim" data-hero-dim></div>
+      </div>
+      <div class="hero__title" data-hero-title>
+        <div class="hero__title-inner">
+          <div class="hero__headline">Michael Robinson Landscape Photography</div>
+          <div class="hero__sub">CANOPY · DAWN &amp; DUSK · WATER · FORM &amp; TEXTURE · FILM &amp; FACES</div>
+        </div>
+        <div class="hero__scroll" aria-hidden="true">
+          <span class="hero__scroll-word">SCROLL</span>
+          <span class="hero__scroll-arrow"></span>
+        </div>
+      </div>
+      <div class="hero__marks" data-hero-marks aria-hidden="true">
+        <span class="mark mark--tl"></span><span class="mark mark--tr"></span>
+        <span class="mark mark--bl"></span><span class="mark mark--br"></span>
+      </div>
+    </div>
+    <div class="hero__cap" data-hero-cap aria-hidden="true">
+      <span data-hero-cap-left>{{ heroes[0].title | upper }}</span>
+      <span class="hero__cap-right" data-hero-cap-right>{{ heroes[0].meta | upper }}</span>
+    </div>
+  </div>
+</section>
+
+<section class="collections" data-collections>
+  <div class="collections__label">COLLECTIONS</div>
+  <div class="collections__list">
+    {%- for c in portfolio %}
+    <a class="col-row" href="/{{ c.slug }}/" style="--i:{{ loop.index0 }}">
+      <span class="col-row__left">
+        <img class="col-row__thumb" src="{{ c.works[0].thumb }}" alt="{{ c.name }}" draggable="false" loading="lazy">
+        <span class="col-row__text">
+          <span class="col-row__name">{{ c.name }}</span>
+          <span class="col-row__note">{{ c.note }}</span>
+        </span>
+      </span>
+      <span class="col-row__count">{{ c.count }} {% if c.count == 1 %}PHOTOGRAPH{% else %}PHOTOGRAPHS{% endif %}</span>
+    </a>
+    {%- endfor %}
+  </div>
+</section>

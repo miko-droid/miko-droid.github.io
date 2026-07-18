@@ -1,0 +1,556 @@
+/* ============================================================================
+   Michael Robinson — Landscape Photography
+   Ported from the Claude Design "Portfolio v5" spec.
+
+   Theme: "bone" (default) ships live. A "night" palette is included below —
+   flip it on by adding data-theme="night" to the <html> element.
+   Crop marks are OFF by default (matching the design). Turn them on by adding
+   the class "crop-marks" to the <html> element.
+   ============================================================================ */
+
+:root {
+  --paper: #efede6;
+  --ink: #1e2b22;
+  --muted: #4e584a;
+  --line: #d8d4c5;
+  --key: #1e2b22;
+  --acc: #41573a;
+  --mark: #1e2b22;
+  --matbg: #fffef9;
+  --shadow: 0 1px 2px rgba(30, 43, 34, .05), 0 14px 34px rgba(30, 43, 34, .12);
+  --shadow-hover: 0 2px 3px rgba(30, 43, 34, .06), 0 22px 48px rgba(30, 43, 34, .18);
+  --sans: 'Archivo', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* Motion. --ease drives micro-interactions (hover, nudge); --ease-soft is a
+     gentler settle used for entrances and the shrink/morph transitions. */
+  --ease: cubic-bezier(.3, .72, .2, 1);
+  --ease-soft: cubic-bezier(.16, 1, .3, 1);
+}
+
+:root[data-theme="night"] {
+  --paper: #13160f;
+  --ink: #e6e2d3;
+  --muted: #8a8775;
+  --line: #262a1e;
+  --key: #4f5440;
+  --acc: #9db08e;
+  --mark: #8a8f75;
+  --matbg: #f5f2e9;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 40px rgba(0, 0, 0, .55);
+  --shadow-hover: 0 2px 4px rgba(0, 0, 0, .45), 0 22px 52px rgba(0, 0, 0, .6);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  /* Keep the scrollbar's lane reserved even while the lightbox locks the page
+     (overflow: hidden) — otherwise the bar vanishing/reappearing reflows the
+     whole page sideways on open and close. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--acc); color: var(--paper); }
+
+img { max-width: 100%; }
+
+a { color: inherit; }
+
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+/* ---- Keyframes ---------------------------------------------------------- */
+@keyframes mrUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes mrRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes mrFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mrFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes mrPulse { from { opacity: .5; transform: translateY(-3px); } to { opacity: 1; transform: translateY(4px); } }
+@keyframes mrDevA { from { opacity: 0; filter: brightness(1.28) contrast(.88); } to { opacity: 1; filter: none; } }
+@keyframes mrDevB { from { opacity: 0; filter: brightness(1.28) contrast(.88); } to { opacity: 1; filter: none; } }
+
+/* ---- Layout helpers ----------------------------------------------------- */
+.wrap {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding-inline: clamp(22px, 5vw, 54px);
+}
+
+/* ---- Corner crop marks (hidden unless html.crop-marks) ------------------ */
+.marks, .hero__marks { display: none; }
+.crop-marks .marks { display: block; }
+.crop-marks .hero__marks { display: block; }
+.mark { position: absolute; width: 9px; height: 9px; }
+.mark--tl { top: -5px; left: -5px; border-top: 1px solid var(--mark); border-left: 1px solid var(--mark); }
+.mark--tr { top: -5px; right: -5px; border-top: 1px solid var(--mark); border-right: 1px solid var(--mark); }
+.mark--bl { bottom: -5px; left: -5px; border-bottom: 1px solid var(--mark); border-left: 1px solid var(--mark); }
+.mark--br { bottom: -5px; right: -5px; border-bottom: 1px solid var(--mark); border-right: 1px solid var(--mark); }
+
+/* ---- Header ------------------------------------------------------------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  --hdr-fg: var(--ink);
+  --hdr-muted: var(--muted);
+  --hdr-active-line: var(--acc);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-block: 24px 14px;
+}
+.wordmark {
+  color: var(--hdr-fg);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .06em;
+  text-decoration: none;
+  transition: opacity .25s var(--ease);
+}
+.wordmark:hover { opacity: .72; }
+.nav { display: flex; gap: 22px; }
+.nav-link {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .08em;
+  color: var(--hdr-muted);
+  text-decoration: none;
+  /* Padding + matching negative margin widen the touch target to ~44px
+     without moving anything visually (the active underline stays 2px under
+     the text, and baseline alignment ignores the padding). */
+  padding: 14px 8px 2px;
+  margin: -14px -8px 0;
+  border-bottom: 1px solid transparent;
+  transition: color .25s var(--ease), border-color .25s var(--ease);
+}
+.nav-link:hover { color: var(--hdr-fg); }
+.nav-link.is-active { color: var(--hdr-fg); border-bottom-color: var(--hdr-active-line); }
+
+/* On the home page the header floats over the immersive hero, light on the
+   image. hero.js interpolates these vars back to the bone palette on scroll. */
+body.is-home .site-header {
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: transparent;
+  border-bottom-color: transparent;
+  --hdr-fg: #f2efe3;
+  --hdr-muted: #dcd8c7;
+  --hdr-active-line: #dcd8c7;
+}
+
+main { display: block; }
+
+/* ---- Hero (immersive) --------------------------------------------------- */
+/* Height controls how much you scroll before the shrink finishes and the
+   collections rise in. hero.js keeps its animation math in sync with this:
+   142svh section − 100svh sticky = 42svh of travel = SHRINK 0.42 (matches v5). */
+.hero { position: relative; height: 142svh; }
+.hero__sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.hero__frame {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100svh;
+  border: 1px solid transparent;
+  background: var(--matbg);
+  transition: box-shadow .6s ease;
+  will-change: width, height, padding;
+}
+.hero__stage { position: relative; width: 100%; height: 100%; overflow: hidden; background: #dedbcf; }
+.hero__slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 2.4s ease;
+}
+.hero__dim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Forest-tinted, not neutral grey — deepest at the base. */
+  background: linear-gradient(to top, rgba(14, 25, 18, .60) 0%, rgba(14, 25, 18, .22) 52%, rgba(14, 25, 18, .34) 100%);
+}
+.hero__title {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: max(300px, 38vh);
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(14, 25, 18, .68) 0%, rgba(14, 25, 18, .30) 48%, rgba(14, 25, 18, 0) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-bottom: 26px;
+  color: #f2efe3;
+}
+.hero__title-inner { text-align: center; padding: 0 24px; max-width: 820px; animation: mrUp .8s var(--ease-soft) .2s both; }
+.hero__headline { font-size: clamp(25px, 3.6vw, 42px); font-weight: 300; letter-spacing: .005em; line-height: 1.22; text-wrap: balance; }
+.hero__sub { font-family: var(--mono); font-size: 11px; letter-spacing: .24em; color: #dcd8c7; margin-top: 13px; }
+.hero__scroll { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px; }
+.hero__scroll-word {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .34em;
+}
+.hero__scroll-arrow {
+  position: relative;
+  width: 1px;
+  height: 46px;
+  background: currentColor;
+  animation: mrPulse 2.6s ease-in-out infinite alternate;
+}
+.hero__scroll-arrow::after {
+  content: "";
+  position: absolute;
+  left: -3.5px;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  border-left: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg);
+}
+.hero__marks { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.hero__cap {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  opacity: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.hero__cap-right { color: var(--acc); }
+
+/* ---- Collections list (home) ------------------------------------------- */
+.collections {
+  width: min(780px, 86vw);
+  margin: clamp(44px, 8vh, 78px) auto 0;
+  border-top: 1px solid var(--key);
+  padding-top: 22px;
+}
+.collections__label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .22em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  animation: mrUp .5s var(--ease-soft) .05s both;
+}
+.col-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  animation: mrUp .5s var(--ease-soft) both;
+  animation-delay: calc(var(--i) * 70ms + 120ms);
+  transition: opacity .4s var(--ease), transform .4s var(--ease);
+}
+.col-row:hover { opacity: .78; transform: translateX(8px); }
+.col-row__left { display: flex; align-items: center; gap: 16px; }
+.col-row__thumb { width: 64px; height: 46px; object-fit: cover; flex: none; border: 1px solid var(--key); }
+.col-row__name { display: block; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+.col-row__note { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.col-row__count { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; flex: none; text-align: right; }
+
+/* ---- Collection page ---------------------------------------------------- */
+/* The whole screen fades in as a unit (matches the design's colAnim) — on
+   top of, not instead of, the collection__head/print-block animations below.
+   It's what makes the landing photo read as arriving even though the photo
+   itself (first print-block) has no rise animation of its own. */
+.collection { animation: mrFade .5s ease both; }
+.collection__bar {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 28px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--muted);
+}
+.collection__back { text-decoration: none; transition: color .25s var(--ease), transform .3s var(--ease); }
+.collection__back:hover { color: var(--ink); transform: translateX(-4px); }
+.collection__head { text-align: center; padding: clamp(28px, 6vh, 58px) 24px 0; animation: mrUp .5s var(--ease-soft) both; }
+.collection__count { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--acc); }
+.collection__name { margin: 16px 0 0; font-size: clamp(30px, 4.5vw, 46px); font-weight: 600; letter-spacing: -.015em; text-wrap: balance; }
+.collection__note { font-size: 16px; color: var(--muted); margin-top: 12px; }
+
+.prints {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(28px, 4.5vh, 48px);
+  padding: clamp(46px, 8vh, 84px) 20px 0;
+}
+.print-block { display: flex; flex-direction: column; max-width: 100%; }
+/* Each print after the first rises in the first time it scrolls into view.
+   reveal.js hides below-fold blocks (.will-rise) and fires the one-shot rise
+   (.is-in) via IntersectionObserver. Time-based rather than
+   animation-timeline: view() — the scroll-driven version kept every print
+   (image + mat + blurred shadow) promoted as its own composited layer and
+   sampled against scroll each frame, which stuttered on the way down the
+   page. Without JS nothing is hidden and the prints are simply there. */
+.print-block.will-rise { opacity: 0; }
+.print-block.is-in { animation: mrRise .6s var(--ease-soft) both; }
+.print {
+  position: relative;
+  display: block;
+  margin: 0;
+  border: 1px solid var(--key);
+  background: var(--matbg);
+  padding: clamp(14px, 2.4vw, 24px);
+  box-shadow: var(--shadow);
+  font: inherit;
+  color: inherit;
+  cursor: zoom-in;
+  transition: box-shadow .5s var(--ease), transform .5s var(--ease);
+}
+.print:hover { box-shadow: var(--shadow-hover); transform: translateY(-4px); }
+.print:active { transform: translateY(-1px); transition-duration: .12s; }
+.print__img { display: block; }
+/* Portraits: max-constraints on both axes (not a fixed height + object-fit:
+   contain) so the box shrinks to the photo — a fixed-height box letterboxed
+   the image inside its own mat on narrow screens once 86vw clamped the width. */
+.print--p .print__img { width: auto; height: auto; max-width: 86vw; max-height: min(70vh, 680px); }
+.print--l .print__img { width: min(760px, 86vw); height: auto; }
+.print--pano .print__img { width: min(960px, 92vw); height: auto; }
+
+.cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.cap__left { color: var(--ink); }
+.cap__right { color: var(--acc); }
+/* Optional one-line story under the caption — sentence case, in Michael's
+   voice. width:100% drops it onto its own line inside the wrapping flex row. */
+.cap__story {
+  width: 100%;
+  margin-top: 4px;
+  color: var(--muted);
+  letter-spacing: 0;
+  font-style: italic;
+}
+
+.collection__pager {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: clamp(60px, 11vh, 110px);
+  padding-top: 20px;
+  border-top: 1px solid var(--key);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+.collection__prev, .collection__next { text-decoration: none; transition: color .25s var(--ease), transform .3s var(--ease); }
+.collection__prev:hover { color: var(--ink); transform: translateX(-4px); }
+.collection__next:hover { color: var(--ink); transform: translateX(4px); }
+
+/* ---- About -------------------------------------------------------------- */
+.about {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(40px, 6vw, 76px);
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(40px, 7vh, 76px) 24px 0;
+}
+.about__portrait-frame {
+  position: relative;
+  border: 1px solid var(--key);
+  background: var(--matbg);
+  padding: clamp(12px, 2vw, 18px) clamp(12px, 2vw, 18px) clamp(34px, 4vw, 46px);
+  box-shadow: var(--shadow);
+  animation: mrUp .55s var(--ease-soft) both;
+}
+.about__portrait { position: relative; width: min(320px, 76vw); height: 400px; overflow: hidden; background: #dedbcf; }
+.about__portrait-img { width: 100%; height: 100%; object-fit: cover; display: block; position: relative; z-index: 1; }
+.about__portrait-ph {
+  position: absolute; inset: 0; z-index: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .2em;
+  color: var(--muted); text-transform: uppercase;
+}
+.about__body { max-width: 470px; padding-top: 4px; animation: mrUp .55s var(--ease-soft) .12s both; }
+.about__label { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--acc); }
+.about__body p { font-size: 18px; line-height: 1.75; margin: 16px 0 0; }
+.about__body p a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--key); transition: color .25s ease, border-color .25s ease; }
+.about__body p a:hover { color: var(--acc); border-bottom-color: var(--acc); }
+.about__body p:first-of-type { margin-top: 20px; }
+.about__contact {
+  margin: 34px 0 0;
+  border-top: 1px solid var(--key);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.about__contact div { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.about__contact dt { white-space: nowrap; }
+.about__contact dt::after { content: " ·"; }
+/* min-width lets a long value (the prints line) drop onto its own full-width
+   line under the label on narrow screens instead of squeezing beside it */
+.about__contact dd { margin: 0; flex: 1; min-width: 280px; }
+.about__contact a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--key); transition: color .25s ease, border-color .25s ease; }
+.about__contact a:hover { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* ---- Footer ------------------------------------------------------------- */
+.footer-inner {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: clamp(56px, 10vh, 96px);
+  /* top/bottom only — a `padding` shorthand here would wipe out .wrap's
+     horizontal padding-inline and let the text hit the screen edge on mobile */
+  padding-top: 20px;
+  padding-bottom: 34px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  line-height: 1.9;
+  color: var(--muted);
+}
+.footer-link { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); transition: color .25s ease, border-color .25s ease; }
+.footer-link:hover { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* ---- Lightbox ----------------------------------------------------------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  cursor: zoom-out;
+  background: rgba(9, 10, 8, .95);
+  animation: mrFade .4s var(--ease-soft) both;
+}
+.lightbox[hidden] { display: none; }
+.lightbox.is-closing { animation: mrFadeOut .3s var(--ease-soft) both; pointer-events: none; }
+/* Sized from --ar (the photo's aspect ratio, set in JS) rather than letting
+   the <img>'s own intrinsic resolution drive its box — otherwise swapping
+   from the seed (a smaller, already-loaded resource) to the full-res image
+   changes the element's natural size mid-lightbox and the frame visibly
+   resizes/jumps the moment the upgrade lands, even though it's the same
+   photo at the same aspect ratio the whole time. */
+.lightbox__img {
+  /* svh, not vh: on mobile Safari/Chrome 100vh includes the space behind the
+     browser UI, so an 80vh photo + meta can spill under the toolbar. The vh
+     lines are the fallback for older browsers. */
+  width: min(92vw, calc(80vh * var(--ar, 1.5)));
+  width: min(92vw, calc(76svh * var(--ar, 1.5)));
+  aspect-ratio: var(--ar, 1.5);
+  max-height: 80vh;
+  max-height: 76svh;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, .7);
+}
+.lightbox__img.is-develop-a { animation: mrDevA .5s var(--ease-soft) both; }
+.lightbox__img.is-develop-b { animation: mrDevB .5s var(--ease-soft) both; }
+.lightbox__meta { text-align: center; font-family: var(--mono); letter-spacing: .06em; cursor: default; animation: mrFade .5s var(--ease-soft) .3s both; }
+.lightbox__title { font-size: 12px; color: #d8d2c2; }
+.lightbox__loc { font-size: 11px; color: #8a8f75; margin-top: 6px; }
+.lightbox__story { font-size: 11px; color: #8a8f75; margin-top: 8px; max-width: 52ch; font-style: italic; }
+.lightbox__count { font-size: 10.5px; color: #767b62; letter-spacing: .22em; margin-top: 9px; }
+.lightbox__close, .lightbox__nav {
+  position: fixed;
+  background: none;
+  border: 0;
+  color: #8a8f75;
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+  transition: color .25s ease, transform .3s var(--ease);
+}
+.lightbox__close { top: 16px; right: 28px; font-size: 30px; }
+.lightbox__close:hover { color: #e6e2d3; }
+.lightbox__nav { top: 50%; transform: translateY(-50%); font-size: 40px; padding: 14px; }
+.lightbox__nav--prev { left: 14px; }
+.lightbox__nav--next { right: 14px; }
+.lightbox__nav--prev:hover { color: #e6e2d3; transform: translateY(-50%) translateX(-3px); }
+.lightbox__nav--next:hover { color: #e6e2d3; transform: translateY(-50%) translateX(3px); }
+
+/* Clone used by the FLIP fly transition (created in JS). */
+.mr-flight {
+  position: fixed;
+  z-index: 70;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 14px 40px rgba(20, 24, 18, .3);
+  transition: left .6s var(--ease), top .6s var(--ease),
+    width .6s var(--ease), height .6s var(--ease), opacity .22s ease;
+}
+
+/* ---- Responsive --------------------------------------------------------- */
+@media (max-width: 640px) {
+  .hero__title { height: max(240px, 42vh); }
+  .col-row__name { font-size: 18px; }
+  .about { padding-top: clamp(28px, 5vh, 48px); }
+}
+
+/* ---- Reduced motion: static, framed hero, no animation ------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+  .hero { height: 100svh; }
+  .hero__sticky { position: static; height: 100svh; }
+  .hero__frame { width: 100% !important; height: 100svh !important; padding: 0 !important; }
+  .hero__cap { display: none; }
+}

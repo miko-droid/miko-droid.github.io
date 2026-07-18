@@ -1,0 +1,15 @@
+{
+  "name": "michaelrobinson-io",
+  "version": "1.0.0",
+  "description": "Personal website for Michael Robinson",
+  "scripts": {
+    "start": "eleventy --serve",
+    "build": "eleventy",
+    "deploy": "eleventy && node -e \"require('fs').writeFileSync('_site/.nojekyll','')\" && gh-pages -d _site --dotfiles --no-history -m \"Deploy site\""
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0",
+    "@11ty/eleventy-img": "^6.0.4",
+    "gh-pages": "^6.3.0"
+  }
+}

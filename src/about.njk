@@ -1,0 +1,44 @@
+---
+layout: base.njk
+title: About
+permalink: /about/
+description: "About Michael Robinson, a photographer drawn back to the rainforest of the Scenic Rim, with landscapes from across Australia and portraits on 35mm film. Prints available."
+---
+
+<section class="about">
+  <div class="about__portrait-frame">
+    <div class="about__portrait">
+      <img class="about__portrait-img" src="/images/portrait.jpg" alt="Michael Robinson"
+           draggable="false" onerror="this.style.display='none';this.parentNode.classList.add('is-empty')">
+      <span class="about__portrait-ph" aria-hidden="true">Portrait</span>
+    </div>
+    <span class="marks" aria-hidden="true">
+      <span class="mark mark--tl"></span><span class="mark mark--tr"></span>
+      <span class="mark mark--bl"></span><span class="mark mark--br"></span>
+    </span>
+  </div>
+
+  <div class="about__body">
+    <div class="about__label">ABOUT</div>
+    <p>Hi, I'm Michael. I photograph landscapes around South East Queensland - the rainforest, the ranges, the coast - and wherever else the car ends up.</p>
+    <p>Being out there is honestly the point. Fog moving through the beech forest, first light on big country, a beach before anyone else is on it. The camera gives me a reason to be in those places at those hours, and the photos are my way of bringing a bit of it back - hopefully some of it lands for you too.</p>
+    <p>I keep going back to the same tracks around the Scenic Rim in different weather and different light; the rest come from travelling around. Everything on the site is a keeper - the ones I'd print and hang at home.</p>
+    <p>I also photograph people. Portraits, the odd wedding, friends - often on 35mm film, because it makes me slow down.</p>
+    <p>Thanks for stopping by. If you'd like a print, or just want to talk photos, my email's below - and I'm on Instagram at <a href="{{ site.instagram }}" target="_blank" rel="noopener">@mickjphotos</a>.</p>
+
+    <dl class="about__contact">
+      <div>
+        <dt>EMAIL</dt>
+        <dd><a href="mailto:{{ site.email }}">{{ site.email | upper }}</a></dd>
+      </div>
+      <div>
+        <dt>INSTAGRAM</dt>
+        <dd><a href="{{ site.instagram }}" target="_blank" rel="noopener">@MICKJPHOTOS</a></dd>
+      </div>
+      <div>
+        <dt>PRINTS</dt>
+        <dd>{{ site.prints }}</dd>
+      </div>
+    </dl>
+  </div>
+</section>

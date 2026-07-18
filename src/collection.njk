@@ -1,0 +1,62 @@
+---
+layout: base.njk
+pagination:
+  data: portfolio
+  size: 1
+  alias: collection
+permalink: "/{{ collection.slug }}/"
+eleventyComputed:
+  title: "{{ collection.name }}"
+  description: "{{ collection.name }} · {{ collection.note }}. Landscape photographs by Michael Robinson."
+---
+{%- set total = portfolio | length -%}
+{%- set idx = pagination.pageNumber -%}
+{%- set prevCol = portfolio[(idx - 1 + total) % total] -%}
+{%- set nextCol = portfolio[(idx + 1) % total] -%}
+
+<section class="collection">
+  <div class="wrap collection__bar">
+    <a class="collection__back" href="/">&larr; ALL COLLECTIONS</a>
+    <span>{{ (idx + 1) | roman }} / {{ total | roman }}</span>
+  </div>
+
+  <header class="collection__head">
+    <div class="collection__count">{{ collection.count }} {% if collection.count == 1 %}PHOTOGRAPH{% else %}PHOTOGRAPHS{% endif %}</div>
+    <h1 class="collection__name">{{ collection.name }}</h1>
+    <p class="collection__note">{{ collection.intro or collection.note }}</p>
+  </header>
+
+  <div class="prints" data-prints>
+    {%- for w in collection.works %}
+    <figure class="print-block" style="--i:{{ loop.index0 }}">
+      <button class="print print--{{ w.o }}" type="button"
+              data-print
+              data-src="{{ w.full }}"
+              data-title="{{ w.title }}"
+              data-meta="{{ w.meta }}"
+              data-story="{{ w.story }}"
+              aria-label="View photograph: {{ w.title }}{% if w.meta %}, {{ w.meta }}{% endif %}">
+        <img class="print__img" src="{{ w.display }}" srcset="{{ w.srcset }}"
+             sizes="(max-width: 820px) 90vw, 760px"
+             width="{{ w.width }}" height="{{ w.height }}"
+             alt="{{ w.title }}{% if w.meta %} · {{ w.meta }}{% endif %}" draggable="false"
+             {% if loop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+        <span class="marks" aria-hidden="true">
+          <span class="mark mark--tl"></span><span class="mark mark--tr"></span>
+          <span class="mark mark--bl"></span><span class="mark mark--br"></span>
+        </span>
+      </button>
+      <figcaption class="cap">
+        <span class="cap__left">{{ w.title | upper }}</span>
+        {%- if w.meta %}<span class="cap__right">{{ w.meta | upper }}</span>{% endif %}
+        {%- if w.story %}<span class="cap__story">{{ w.story }}</span>{% endif %}
+      </figcaption>
+    </figure>
+    {%- endfor %}
+  </div>
+
+  <nav class="collection__pager wrap" aria-label="Collections">
+    <a class="collection__prev" href="/{{ prevCol.slug }}/">&larr; {{ prevCol.name | upper }}</a>
+    <a class="collection__next" href="/{{ nextCol.slug }}/">{{ nextCol.name | upper }} &rarr;</a>
+  </nav>
+</section>
