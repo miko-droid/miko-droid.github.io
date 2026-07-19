@@ -110,6 +110,10 @@
     var key = px(cs, "--key", [30, 43, 34]);
     var ba = Math.max(0, Math.min(1, (p - 0.45) / 0.35));
     frame.style.borderColor = "rgba(" + key.join(",") + "," + ba + ")";
+    // The border only exists once it starts fading in — at rest it is width 0
+    // so the full-bleed photo has no 1px mat ring on high-DPI phones. The 2px
+    // content-box change lands mid-shrink, while the colour alpha is still 0.
+    frame.style.borderWidth = ba > 0 ? "1px" : "0";
     frame.style.boxShadow = p > 0.6 ? "var(--shadow)" : "none";
 
     if (title) {

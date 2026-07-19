@@ -16,7 +16,30 @@
   // Rebuilt every time the print blocks in <main> change — including right
   // after transitions.js swaps in a new page client-side (same contract as
   // window.MR.rebindLightbox).
+  // Lazy prints download over the #dedbcf plate and their pixels pop in the
+  // moment decode finishes — noticeable on mobile networks. Fade in any print
+  // image still in flight at bind time; images already complete (cache,
+  // back-nav, the eager first two) are never touched so they can't blink.
+  // The CSS transition sits on .is-loaded, so .is-pending snaps to opacity 0
+  // instantly. The reduced bail is load-bearing: the reduced-motion CSS
+  // zeroes animations but not transitions, so these classes must never be
+  // added there.
+  function bindImgFade() {
+    if (reduced) return; // pop is acceptable under reduced motion
+    document.querySelectorAll(".print__img").forEach(function (img) {
+      if (img.complete || img.classList.contains("is-pending")) return;
+      img.classList.add("is-pending");
+      var show = function () {
+        // On error too — never leave an invisible plate.
+        img.classList.add("is-loaded");
+      };
+      img.addEventListener("load", show, { once: true });
+      img.addEventListener("error", show, { once: true });
+    });
+  }
+
   function bind() {
+    bindImgFade(); // needs neither IO nor the rise animation below
     if (io) {
       io.disconnect();
       io = null;

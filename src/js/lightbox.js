@@ -49,9 +49,20 @@
   var idx = -1;
   var open = false;
   var closing = false;
-  var devTick = 0;
   var lastNav = 0;
   var flights = [];
+
+  // One guard for all pointer-driven navigation (open, prev/next click,
+  // swipe) — a swipe's synthetic click, or any other double-fire, lands
+  // inside the window and is dropped. Keyboard arrows bypass it on purpose:
+  // rapid keyboard stepping is safe (swapFull's token supersedes stale
+  // decodes) and throttling it feels broken.
+  function navGuard() {
+    var now = Date.now();
+    if (now - lastNav < 300) return false;
+    lastNav = now;
+    return true;
+  }
 
   // ---- FLIP clone helpers --------------------------------------------------
   function killFlights() {
@@ -116,7 +127,7 @@
   // Decode `src` off-screen, then swap it into the main image. Guarded by a
   // token so a newer navigation supersedes a slow decode (no blank flash — the
   // current frame holds until the next is ready). `animClass` optionally plays
-  // the "develop" flourish once the new frame lands (used when stepping).
+  // a fade once the new frame lands (used when stepping).
   function swapFull(src, animClass) {
     var token = ++renderToken;
     var pre = new Image();
@@ -124,9 +135,9 @@
     var apply = function () {
       if (token !== renderToken) return;
       if (imgEl.getAttribute("src") !== src) imgEl.src = src;
-      imgEl.classList.remove("is-develop-a", "is-develop-b");
+      imgEl.classList.remove("is-fade");
       if (animClass) {
-        void imgEl.offsetWidth; // restart the develop animation
+        void imgEl.offsetWidth; // restart the fade animation
         imgEl.classList.add(animClass);
       }
     };
@@ -175,14 +186,11 @@
   }
 
   function openAt(i, ev) {
-    var now = Date.now();
-    if (now - lastNav < 300) return;
-    lastNav = now;
+    if (!navGuard()) return;
     killFlights();
     idx = i;
     open = true;
     closing = false;
-    devTick = 0;
     render();
     warmNeighbours();
     box.classList.remove("is-closing");
@@ -213,7 +221,7 @@
     var full = bestSrc(items[i]);
     var seed = (srcImg && srcImg.currentSrc) || full;
     ++renderToken; // supersede any in-flight swap from the previous photo
-    imgEl.classList.remove("is-develop-a", "is-develop-b");
+    imgEl.classList.remove("is-fade");
     imgEl.src = seed;
 
     var fr = srcImg ? srcImg.getBoundingClientRect() : null;
@@ -254,14 +262,12 @@
     // hidden image), and swapFull's token supersedes its pending upgrade.
     if (flights.length) killFlights();
     idx = (idx + d + items.length) % items.length;
-    devTick++;
     render();
     warmNeighbours();
     var stepImg = items[idx].el.querySelector("img");
     setAspect(stepImg);
     pickUp(stepImg); // put the previous photo's matt back, empty this one's
-    var animClass = reduced ? "" : devTick % 2 ? "is-develop-a" : "is-develop-b";
-    swapFull(bestSrc(items[idx]), animClass);
+    swapFull(bestSrc(items[idx]), reduced ? "" : "is-fade");
   }
 
   function close() {
@@ -329,12 +335,12 @@
   if (prevBtn)
     prevBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      step(-1);
+      if (navGuard()) step(-1);
     });
   if (nextBtn)
     nextBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      step(1);
+      if (navGuard()) step(1);
     });
 
   window.addEventListener("keydown", function (e) {
@@ -345,8 +351,12 @@
   });
 
   // Touch: swipe left/right steps through the collection, same as the arrow
-  // keys. A real swipe never fires the background-click close — browsers
-  // suppress the click once the finger has moved more than a few pixels.
+  // keys. Browsers only suppress a swipe's synthetic click for scroll
+  // gestures — with the page scroll-locked behind the lightbox, a horizontal
+  // swipe still dispatches a click where the finger lifted (a nav button →
+  // second step, the backdrop → close), so a handled swipe must
+  // preventDefault to cancel it. touchend isn't scroll-blocking, so the
+  // non-passive listener costs nothing; touchstart stays passive.
   var touchX = null;
   var touchY = null;
   box.addEventListener(
@@ -366,9 +376,10 @@
       var dy = e.changedTouches[0].clientY - touchY;
       touchX = touchY = null;
       if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        step(dx < 0 ? 1 : -1);
+        e.preventDefault(); // plain taps never reach here — their clicks survive
+        if (navGuard()) step(dx < 0 ? 1 : -1);
       }
     },
-    { passive: true }
+    { passive: false }
   );
 })();
