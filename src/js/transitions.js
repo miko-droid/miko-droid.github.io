@@ -40,6 +40,26 @@
   var main = document.querySelector("main");
 
   rows.forEach(function (row) {
+    // Warm the destination's first print at the earliest sign of intent
+    // (touchstart fires ~100-300ms before click), so its download runs in
+    // parallel with the HTML fetch instead of after it. One-shot per row.
+    var warmed = false;
+    function warm() {
+      if (warmed || !row.getAttribute("data-first-src")) return;
+      warmed = true;
+      var im = new Image();
+      // Must mirror the print <img> in collection.njk exactly, or the
+      // browser picks a different srcset candidate and the warm is wasted.
+      im.sizes = "(max-width: 820px) 90vw, 760px";
+      var ss = row.getAttribute("data-first-srcset");
+      if (ss) im.srcset = ss;
+      im.src = row.getAttribute("data-first-src");
+      if (im.decode) im.decode().catch(function () {});
+    }
+    ["touchstart", "pointerdown", "mouseenter", "focus"].forEach(function (t) {
+      row.addEventListener(t, warm, { passive: true });
+    });
+
     row.addEventListener("click", function (e) {
       if (navigating || e.defaultPrevented || e.button !== 0) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -80,7 +100,13 @@
           // it would sit fully visible in the frame for the whole flight,
           // with the clone flying in on top of an identical copy of itself.
           var landingImg = main.querySelector("[data-print] img");
-          if (landingImg) landingImg.style.visibility = "hidden";
+          if (landingImg) {
+            landingImg.style.visibility = "hidden";
+            // Decode off-thread while the clone flies, so the reveal paint
+            // doesn't stall on a synchronous WebP decode (noticeable on
+            // mobile with a cold cache).
+            if (landingImg.decode) landingImg.decode().catch(function () {});
+          }
           history.pushState({ mr: true }, "", href);
           // `html { scroll-behavior: smooth }` would otherwise turn this into
           // an animated scroll — the flight below measures the destination
@@ -100,6 +126,10 @@
               return main.querySelector("[data-print] img");
             },
             function () {
+              // flight.js only restores images its own poll found in time —
+              // on a slow network it can give up before the landing image
+              // loads, which would leave it visibility:hidden forever.
+              if (landingImg) landingImg.style.visibility = "";
               navigating = false;
             }
           );

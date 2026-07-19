@@ -23,7 +23,7 @@ description: "Landscape photography by Michael Robinson. Rainforest and waterfal
         {%- for h in heroes %}
         <img class="hero__slide{% if loop.first %} is-active{% endif %}"
              {% if loop.first %}src="{{ h.display }}" srcset="{{ h.heroSrcset }}"{% else %}data-src="{{ h.display }}" data-srcset="{{ h.heroSrcset }}"{% endif %}
-             sizes="100vw" alt="" draggable="false"
+             sizes="100vw" alt="" draggable="false" decoding="async"
              data-hero-slide
              data-cap-left="{{ h.title | upper }}"
              data-cap-right="{{ h.meta | upper }}"
@@ -57,9 +57,13 @@ description: "Landscape photography by Michael Robinson. Rainforest and waterfal
   <div class="collections__label">COLLECTIONS</div>
   <div class="collections__list">
     {%- for c in portfolio %}
-    <a class="col-row" href="/{{ c.slug }}/" style="--i:{{ loop.index0 }}">
+    {#- data-first-* lets transitions.js start downloading the destination's
+        first print on touchstart, before the tap even completes. -#}
+    <a class="col-row" href="/{{ c.slug }}/" style="--i:{{ loop.index0 }}"
+       data-first-src="{{ c.works[0].display }}"
+       data-first-srcset="{{ c.works[0].srcset }}">
       <span class="col-row__left">
-        <img class="col-row__thumb" src="{{ c.works[0].thumb }}" alt="{{ c.name }}" draggable="false" loading="lazy">
+        <img class="col-row__thumb" src="{{ c.works[0].thumb }}" alt="{{ c.name }}" draggable="false" loading="lazy" decoding="async">
         <span class="col-row__text">
           <span class="col-row__name">{{ c.name }}</span>
           <span class="col-row__note">{{ c.note }}</span>

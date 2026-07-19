@@ -36,8 +36,10 @@ eleventyComputed:
               data-meta="{{ w.meta }}"
               data-story="{{ w.story }}"
               aria-label="View photograph: {{ w.title }}{% if w.meta %}, {{ w.meta }}{% endif %}">
+        {#- `sizes` must stay in sync with the warm() prefetch in
+            transitions.js, or the warm fetches a different srcset candidate. -#}
         <img class="print__img" src="{{ w.display }}" srcset="{{ w.srcset }}"
-             sizes="(max-width: 820px) 90vw, 760px"
+             sizes="(max-width: 820px) 90vw, 760px" decoding="async"
              width="{{ w.width }}" height="{{ w.height }}"
              alt="{{ w.title }}{% if w.meta %} · {{ w.meta }}{% endif %}" draggable="false"
              {% if loop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>

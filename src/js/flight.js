@@ -67,7 +67,7 @@
             setTimeout(finish, opts.dur || 660);
           });
         });
-      } else if (++tries < 30) {
+      } else if (++tries < 90) {
         requestAnimationFrame(attempt);
       } else {
         finish();

@@ -26,6 +26,15 @@
     hero.querySelectorAll("[data-hero-slide]")
   );
 
+  // The CSS sizes the hero in svh (stable while the mobile URL bar collapses);
+  // measure the same 100svh so the scroll math never desyncs from the sticky
+  // frame. Where svh is unsupported the CSS falls back too, so innerHeight is
+  // again the consistent choice.
+  var svhProbe = document.createElement("div");
+  svhProbe.style.cssText =
+    "position:fixed;top:0;left:0;width:0;height:100svh;visibility:hidden;pointer-events:none;";
+  document.body.appendChild(svhProbe);
+
   // How far you scroll (as a fraction of viewport height) before the frame has
   // fully shrunk. Keep in step with `.hero { height }` in the CSS so there is no
   // dead scroll: height 142svh → 42svh of travel → SHRINK = 0.42 (matches v5).
@@ -55,7 +64,7 @@
     // this scroll listener stays attached) — bail once the hero is detached.
     if (!document.body.contains(hero)) return;
     var vw = document.documentElement.clientWidth;
-    var vh = window.innerHeight;
+    var vh = svhProbe.offsetHeight || window.innerHeight;
     p = Math.max(0, Math.min(1, window.scrollY / (vh * SHRINK)));
 
     var cs = getComputedStyle(frame);
