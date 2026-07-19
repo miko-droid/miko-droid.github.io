@@ -42,15 +42,22 @@
       if (opts.onDone) opts.onDone();
     }
     flight.finish = finish;
-    setTimeout(finish, opts.maxTotal || 1500); // watchdog
+    // Watchdog for the wait-for-target phase only. It MUST be cleared once
+    // the slide starts: on a slow connection the slide can begin late enough
+    // that a still-armed watchdog fires mid-flight, un-hiding the destination
+    // image underneath the still-moving clone — the photo visibly doubled.
+    var watchdog = setTimeout(finish, opts.maxTotal || 1500);
     var tries = 0;
     (function attempt() {
       if (flight.done) return;
       var el = getTarget();
-      var ok =
-        el && (el.complete === undefined || (el.complete && el.naturalWidth > 0));
-      var r = ok ? el.getBoundingClientRect() : null;
+      // The destination only needs layout, not pixels — width/height
+      // attributes give a still-downloading image its correct rect, so the
+      // slide starts immediately instead of parking the clone at the origin
+      // while the photo downloads. The clone covers the frame until then.
+      var r = el ? el.getBoundingClientRect() : null;
       if (r && r.width > 10 && r.height > 10) {
+        clearTimeout(watchdog);
         if (opts.hideTarget) {
           el.style.visibility = "hidden";
           flight.hidden = el;
@@ -64,7 +71,21 @@
             clone.style.top = t.top + "px";
             clone.style.width = t.width + "px";
             clone.style.height = t.height + "px";
-            setTimeout(finish, opts.dur || 660);
+            setTimeout(function () {
+              // Landed. Hold the clone over the frame until the real image
+              // has pixels — finishing sooner would reveal an empty mat.
+              var loaded =
+                el.complete === undefined ||
+                (el.complete && el.naturalWidth > 0);
+              if (loaded) return finish();
+              var hold = setTimeout(finish, 4000);
+              function onSettle() {
+                clearTimeout(hold);
+                finish();
+              }
+              el.addEventListener("load", onSettle, { once: true });
+              el.addEventListener("error", onSettle, { once: true });
+            }, opts.dur || 660);
           });
         });
       } else if (++tries < 90) {

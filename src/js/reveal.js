@@ -33,9 +33,12 @@
           io.unobserve(en.target);
         });
       },
-      // Fire once the top of the print is ~12% up from the bottom edge —
-      // roughly where the old animation-range (entry 0% → 38%) finished.
-      { rootMargin: "0px 0px -12% 0px" }
+      // Fire the moment the print's top crosses the bottom edge. The old
+      // -12% margin (matching the old animation-range) meant the rise began
+      // only once the print was well inside the viewport — on a mobile fling
+      // the observer lags a frame or two on top of that, so prints popped in
+      // mid-screen instead of rising at the edge.
+      { rootMargin: "0px" }
     );
 
     blocks.forEach(function (b) {

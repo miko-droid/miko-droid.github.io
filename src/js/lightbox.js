@@ -32,6 +32,7 @@
         return {
           el: el,
           src: el.getAttribute("data-src"),
+          display: el.getAttribute("data-display"),
           title: el.getAttribute("data-title") || "",
           meta: el.getAttribute("data-meta") || "",
           story: el.getAttribute("data-story") || "",
@@ -138,10 +139,28 @@
   }
 
   function setAspect(imgForRatio) {
-    var w = imgForRatio && imgForRatio.naturalWidth;
-    var h = imgForRatio && imgForRatio.naturalHeight;
+    // Fall back to the width/height attributes when the on-page print hasn't
+    // loaded yet (stepping fast into lazy territory) — without a real ratio
+    // the frame snaps to the 1.5 default and the photo distorts to fill it.
+    var w =
+      imgForRatio &&
+      (imgForRatio.naturalWidth || +imgForRatio.getAttribute("width"));
+    var h =
+      imgForRatio &&
+      (imgForRatio.naturalHeight || +imgForRatio.getAttribute("height"));
     if (w && h) imgEl.style.setProperty("--ar", w / h);
     else imgEl.style.removeProperty("--ar");
+  }
+
+  // On phones the lightbox shows the photo at ~92vw — essentially the same
+  // size as the in-page print (90vw `sizes`), so the print's own srcset pick
+  // is already the right resolution AND usually cached from scrolling. The
+  // 2200px `full` (~2x the bytes) is only worth decoding on large screens.
+  function bestSrc(it) {
+    if (!(window.matchMedia && matchMedia("(max-width: 820px)").matches))
+      return it.src;
+    var im = it.el.querySelector("img");
+    return (im && im.currentSrc) || it.display || it.src;
   }
 
   // Warm the neighbours so left/right feel instant.
@@ -150,7 +169,7 @@
       var n = items[(k + items.length) % items.length];
       if (n) {
         var warm = new Image();
-        warm.src = n.src;
+        warm.src = bestSrc(n);
       }
     });
   }
@@ -189,8 +208,9 @@
 
     // Seed the lightbox with the print's ALREADY-LOADED image. It's cached
     // (so it lays out instantly instead of stalling the animation on the
-    // full-res download); full-res is upgraded once settled.
-    var full = items[i].src;
+    // full-res download); full-res is upgraded once settled. On phones
+    // bestSrc IS the seed, so no upgrade fetch/decode happens at all.
+    var full = bestSrc(items[i]);
     var seed = (srcImg && srcImg.currentSrc) || full;
     ++renderToken; // supersede any in-flight swap from the previous photo
     imgEl.classList.remove("is-develop-a", "is-develop-b");
@@ -218,14 +238,21 @@
         },
       }
     );
-    // Belt-and-braces: never leave the main image hidden.
+    // Belt-and-braces: never leave the main image hidden. Must comfortably
+    // outlast the flight's wait phase (maxTotal 1300) PLUS the 660ms slide,
+    // or it un-hides the target mid-flight and the photo shows doubled.
     setTimeout(function () {
       imgEl.style.visibility = "";
-    }, 1400);
+    }, 2400);
   }
 
   function step(d) {
-    if (closing || flights.length) return;
+    if (closing) return;
+    // Don't drop the tap because the opening flight (up to ~2s on a slow
+    // connection) hasn't landed — cancel it and step; reads as a freeze
+    // otherwise. killFlights() finishes the flight cleanly (restores the
+    // hidden image), and swapFull's token supersedes its pending upgrade.
+    if (flights.length) killFlights();
     idx = (idx + d + items.length) % items.length;
     devTick++;
     render();
@@ -234,7 +261,7 @@
     setAspect(stepImg);
     pickUp(stepImg); // put the previous photo's matt back, empty this one's
     var animClass = reduced ? "" : devTick % 2 ? "is-develop-a" : "is-develop-b";
-    swapFull(items[idx].src, animClass);
+    swapFull(bestSrc(items[idx]), animClass);
   }
 
   function close() {

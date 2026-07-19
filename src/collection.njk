@@ -32,6 +32,7 @@ eleventyComputed:
       <button class="print print--{{ w.o }}" type="button"
               data-print
               data-src="{{ w.full }}"
+              data-display="{{ w.display }}"
               data-title="{{ w.title }}"
               data-meta="{{ w.meta }}"
               data-story="{{ w.story }}"
@@ -42,7 +43,10 @@ eleventyComputed:
              sizes="(max-width: 820px) 90vw, 760px" decoding="async"
              width="{{ w.width }}" height="{{ w.height }}"
              alt="{{ w.title }}{% if w.meta %} · {{ w.meta }}{% endif %}" draggable="false"
-             {% if loop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+             {#- The second print loads eagerly too — it's the first thing you
+                 scroll to, and native lazy starts it late enough on mobile
+                 that its pixels pop into an empty mat. -#}
+             {% if loop.first %}loading="eager" fetchpriority="high"{% elif loop.index0 == 1 %}loading="eager"{% else %}loading="lazy"{% endif %}>
         <span class="marks" aria-hidden="true">
           <span class="mark mark--tl"></span><span class="mark mark--tr"></span>
           <span class="mark mark--bl"></span><span class="mark mark--br"></span>

@@ -347,7 +347,10 @@ main { display: block; }
 }
 .print:hover { box-shadow: var(--shadow-hover); transform: translateY(-4px); }
 .print:active { transform: translateY(-1px); transition-duration: .12s; }
-.print__img { display: block; }
+/* The plate tone (same as .hero__stage / .about__portrait) fills the photo's
+   reserved box while a lazy image is still downloading, so pixels arrive over
+   a defined plate instead of popping into an empty mat. */
+.print__img { display: block; background: #dedbcf; }
 /* Portraits: max-constraints on both axes (not a fixed height + object-fit:
    contain) so the box shrinks to the photo — a fixed-height box letterboxed
    the image inside its own mat on narrow screens once 86vw clamped the width. */
