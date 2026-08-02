@@ -32,6 +32,7 @@
         return {
           el: el,
           src: el.getAttribute("data-src"),
+          srcAvif: el.getAttribute("data-src-avif"),
           display: el.getAttribute("data-display"),
           title: el.getAttribute("data-title") || "",
           meta: el.getAttribute("data-meta") || "",
@@ -39,11 +40,57 @@
         };
       });
     items.forEach(function (it, i) {
+      // Idempotent: today this is only ever called against freshly-swapped
+      // nodes, so a second call couldn't double-bind. That's an invariant
+      // living in another file, and a double-bound print opens the lightbox
+      // twice per tap.
+      if (it.el.mrBound) return;
+      it.el.mrBound = true;
       it.el.addEventListener("click", function (ev) {
         ev.preventDefault();
-        openAt(i, ev);
+        openAt(items.indexOf(it), ev);
       });
     });
+  }
+
+  // ---- Page scroll lock ----------------------------------------------------
+  // `html { overflow: hidden }` alone was not enough. It leaves the document
+  // programmatically scrollable, it does not survive iOS Safari's rubber-band
+  // reliably, and above all it does not REMEMBER anything: scroll away behind
+  // an open lightbox and closing it drops you somewhere else entirely.
+  // Pinning the body at a negative offset holds the page exactly where it was,
+  // visually unchanged, and restores it on the way out.
+  var lockedY = 0;
+  var locked = false;
+  function lockScroll() {
+    if (locked) return;
+    locked = true;
+    lockedY = window.scrollY;
+    var s = document.body.style;
+    s.position = "fixed";
+    s.top = -lockedY + "px";
+    s.left = "0";
+    s.right = "0";
+    s.width = "100%";
+    // The scrollbar disappearing would otherwise shift the whole page
+    // sideways under a backdrop you can see through. On touch there is no
+    // scrollbar to lose (and style.css deliberately keeps scrollbar-gutter
+    // off there), so this only applies where one exists.
+    document.documentElement.style.overflow = "hidden";
+  }
+  function unlockScroll() {
+    if (!locked) return;
+    locked = false;
+    var s = document.body.style;
+    s.position = "";
+    s.top = "";
+    s.left = "";
+    s.right = "";
+    s.width = "";
+    document.documentElement.style.overflow = "";
+    // `instant`, or html { scroll-behavior: smooth } animates the restore and
+    // the fly-back below measures a moving target.
+    window.scrollTo({ top: lockedY, left: 0, behavior: "instant" });
   }
 
   var idx = -1;
@@ -51,6 +98,21 @@
   var closing = false;
   var lastNav = 0;
   var flights = [];
+  // Both of these outlive the interaction that armed them, so every entry
+  // point has to be able to cancel them (see clearTimers).
+  var unhideTimer = null; // openAt's belt-and-braces un-hide
+  var closeTimer = null; // close()'s deferred finish()
+
+  function clearTimers() {
+    if (unhideTimer) {
+      clearTimeout(unhideTimer);
+      unhideTimer = null;
+    }
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    }
+  }
 
   // One guard for all pointer-driven navigation (open, prev/next click,
   // swipe) — a swipe's synthetic click, or any other double-fire, lands
@@ -164,12 +226,17 @@
   }
 
   // On phones the lightbox shows the photo at ~92vw — essentially the same
-  // size as the in-page print (90vw `sizes`), so the print's own srcset pick
+  // size as the in-page print (86vw `sizes`), so the print's own srcset pick
   // is already the right resolution AND usually cached from scrolling. The
   // 2200px `full` (~2x the bytes) is only worth decoding on large screens.
+  //
+  // `currentSrc` on the phone path already reflects whatever the <picture>
+  // negotiated, so it is AVIF for free. The large-screen path assigns .src
+  // directly with no <picture> to negotiate for it, so it has to ask.
   function bestSrc(it) {
-    if (!(window.matchMedia && matchMedia("(max-width: 820px)").matches))
-      return it.src;
+    if (!(window.matchMedia && matchMedia("(max-width: 820px)").matches)) {
+      return (window.MR.avif() && it.srcAvif) || it.src;
+    }
     var im = it.el.querySelector("img");
     return (im && im.currentSrc) || it.display || it.src;
   }
@@ -188,6 +255,13 @@
   function openAt(i, ev) {
     if (!navGuard()) return;
     killFlights();
+    // A close still in its 600ms fly-back would otherwise run finish() on top
+    // of the lightbox we're about to open — hiding it again and unlocking the
+    // page a moment after it appeared. Land that close now instead of racing
+    // it. (navGuard's 300ms window is shorter than the close, so it can't
+    // catch this on its own.)
+    if (closing) finishClose();
+    clearTimers();
     idx = i;
     open = true;
     closing = false;
@@ -195,10 +269,7 @@
     warmNeighbours();
     box.classList.remove("is-closing");
     box.hidden = false;
-    // Lock the page while the lightbox is up — on touch, swipes inside the
-    // overlay would otherwise scroll the collection behind it, so closing
-    // lands you somewhere else on the page.
-    document.documentElement.style.overflow = "hidden";
+    lockScroll();
     if (closeBtn) closeBtn.focus({ preventScroll: true });
 
     var srcImg =
@@ -248,8 +319,12 @@
     );
     // Belt-and-braces: never leave the main image hidden. Must comfortably
     // outlast the flight's wait phase (maxTotal 1300) PLUS the 660ms slide,
-    // or it un-hides the target mid-flight and the photo shows doubled.
-    setTimeout(function () {
+    // or it un-hides the target mid-flight and the photo shows doubled. Held
+    // in unhideTimer because it also has to be cancelled across interactions:
+    // open -> close -> reopen inside 2.4s used to let the FIRST open's timer
+    // fire during the SECOND open's flight, showing the photo twice.
+    unhideTimer = setTimeout(function () {
+      unhideTimer = null;
       imgEl.style.visibility = "";
     }, 2400);
   }
@@ -261,6 +336,10 @@
     // otherwise. killFlights() finishes the flight cleanly (restores the
     // hidden image), and swapFull's token supersedes its pending upgrade.
     if (flights.length) killFlights();
+    // The opening flight is gone, so its un-hide safety net is moot — and
+    // leaving it armed would fire mid-step.
+    clearTimers();
+    imgEl.style.visibility = "";
     idx = (idx + d + items.length) % items.length;
     render();
     warmNeighbours();
@@ -270,51 +349,78 @@
     swapFull(bestSrc(items[idx]), reduced ? "" : "is-fade");
   }
 
+  // The tail of close(), split out so it can be landed early: reopening while
+  // a close is still flying used to leave the old close's timer to fire on top
+  // of the new lightbox. Module-scoped state (rather than closure state) is
+  // what makes that possible.
+  var closeClone = null;
+  var closeItem = null;
+
+  function finishClose(skipFocus) {
+    if (!closing) return;
+    clearTimers();
+    open = false;
+    closing = false;
+    box.hidden = true;
+    box.classList.remove("is-closing");
+    imgEl.style.visibility = "";
+    if (closeClone) {
+      if (closeClone.parentNode) closeClone.remove();
+      closeClone = null;
+    }
+    putBack(); // the matt gets its photo back once it's landed
+    // Skipped when openAt is landing this close on its way in — it is about to
+    // focus the close button itself, and focusing the print first would flash
+    // a focus ring on the way past.
+    if (!skipFocus && closeItem && closeItem.el)
+      closeItem.el.focus({ preventScroll: true });
+    closeItem = null;
+  }
+
   function close() {
     if (!open || closing) return;
     killFlights();
+    clearTimers();
     closing = true;
     box.classList.add("is-closing");
+    // Unlock immediately rather than inside finishClose: the fade-out is
+    // pointer-events:none, so holding the page locked for another 600ms only
+    // means a scroll gesture during the close does nothing. Unlocking here
+    // also means the fly-back below measures the print at its real resting
+    // position.
+    unlockScroll();
 
     var it = items[idx];
+    closeItem = it;
     var tgtImg = it ? it.el.querySelector("img") : null;
     var tr = null;
     if (tgtImg) {
       var r = tgtImg.getBoundingClientRect();
       if (r.bottom > 60 && r.top < window.innerHeight - 60) tr = r;
     }
-    function finish() {
-      open = false;
-      closing = false;
-      box.hidden = true;
-      box.classList.remove("is-closing");
-      document.documentElement.style.overflow = "";
-      imgEl.style.visibility = "";
-      putBack(); // the matt gets its photo back once it's landed
-      if (it && it.el) it.el.focus({ preventScroll: true });
-    }
-    if (reduced || !tr) {
-      setTimeout(finish, 320);
+    var t = window.MR.flight.durations();
+    if (reduced || !t.dur || !tr) {
+      // No fly-back: just let the backdrop fade out. Zero under reduced
+      // motion, where the CSS has collapsed that fade to nothing and any wait
+      // here is a dead hold on a closed lightbox.
+      closeTimer = setTimeout(finishClose, t.dur ? 320 : 0);
       return;
     }
     var fr = imgEl.getBoundingClientRect();
     imgEl.style.visibility = "hidden";
-    var clone = window.MR.flight.makeClone(imgEl.currentSrc || it.src, fr);
+    closeClone = window.MR.flight.makeClone(imgEl.currentSrc || it.src, fr, tr);
+    var clone = closeClone;
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
-        clone.style.left = tr.left + "px";
-        clone.style.top = tr.top + "px";
-        clone.style.width = tr.width + "px";
-        clone.style.height = tr.height + "px";
+        if (closeClone === clone) window.MR.flight.moveTo(clone, tr);
       });
     });
-    setTimeout(function () {
+    closeTimer = setTimeout(function () {
+      closeTimer = null;
       clone.style.opacity = "0";
-      setTimeout(function () {
-        if (clone.parentNode) clone.remove();
-      }, 220);
-      finish();
-    }, 600);
+      // Let the opacity transition play before finishClose removes the node.
+      closeTimer = setTimeout(finishClose, t.fade);
+    }, t.dur);
   }
 
   // ---- Wiring --------------------------------------------------------------
@@ -345,9 +451,22 @@
 
   window.addEventListener("keydown", function (e) {
     if (!open) return;
-    if (e.key === "Escape") close();
-    else if (e.key === "ArrowRight") step(1);
-    else if (e.key === "ArrowLeft") step(-1);
+    if (e.key === "Escape") return close();
+    if (e.key === "ArrowRight") return step(1);
+    if (e.key === "ArrowLeft") return step(-1);
+    if (e.key !== "Tab") return;
+    // Focus trap. The dialog is only ever these three buttons, so cycling
+    // them by hand beats a general tabbable-node query. Without it, Tab off
+    // the last button walks into the scroll-locked page behind the overlay.
+    var focusable = [prevBtn, nextBtn, closeBtn].filter(Boolean);
+    if (!focusable.length) return;
+    var i = focusable.indexOf(document.activeElement);
+    var next = e.shiftKey ? i - 1 : i + 1;
+    if (i === -1) next = e.shiftKey ? focusable.length - 1 : 0;
+    else if (next < 0) next = focusable.length - 1;
+    else if (next >= focusable.length) next = 0;
+    e.preventDefault();
+    focusable[next].focus();
   });
 
   // Touch: swipe left/right steps through the collection, same as the arrow
@@ -362,9 +481,25 @@
   box.addEventListener(
     "touchstart",
     function (e) {
-      if (e.touches.length !== 1) return;
+      // A second finger means a pinch, not a swipe. Abandon the gesture
+      // rather than just ignoring this event: leaving the first finger's
+      // origin in place let the eventual touchend measure dx from it and
+      // step the collection in the middle of a pinch-zoom.
+      if (e.touches.length !== 1) {
+        touchX = touchY = null;
+        return;
+      }
       touchX = e.touches[0].clientX;
       touchY = e.touches[0].clientY;
+    },
+    { passive: true }
+  );
+  // An interrupted gesture (a call, the app backgrounding) must not leave a
+  // stale origin behind for the next touchend to measure against.
+  box.addEventListener(
+    "touchcancel",
+    function () {
+      touchX = touchY = null;
     },
     { passive: true }
   );

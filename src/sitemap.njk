@@ -1,0 +1,25 @@
+---
+permalink: /sitemap.xml
+eleventyExcludeFromCollections: true
+layout: false
+---
+{#- Built from the portfolio data rather than an Eleventy collection, because
+    the collection pages are paginated out of `portfolio` and the two static
+    pages are the only others on the site. -#}
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{{ site.url }}/</loc>
+    <priority>1.0</priority>
+  </url>
+  {%- for c in portfolio %}
+  <url>
+    <loc>{{ site.url }}/{{ c.slug }}/</loc>
+    <priority>0.8</priority>
+  </url>
+  {%- endfor %}
+  <url>
+    <loc>{{ site.url }}/about/</loc>
+    <priority>0.5</priority>
+  </url>
+</urlset>

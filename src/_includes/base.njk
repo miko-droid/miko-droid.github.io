@@ -2,18 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% if title %}{{ title }} &middot; {{ site.name }}{% else %}{{ site.name }} &middot; Landscape Photography{% endif %}</title>
-  <meta name="description" content="{{ description or site.tagline }}">
+  {#- viewport-fit=cover is what makes env(safe-area-inset-*) resolve to
+      anything other than 0. The lightbox close and arrow buttons have been
+      offsetting themselves by those insets all along; without this they were
+      simply adding 0 and sitting under the notch. -#}
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  {%- set pageTitle = title + " · " + site.name if title else site.name + " · Landscape Photography" %}
+  {%- set pageDesc = description or site.tagline %}
+  {#- Link previews. The whole point of the site is being something to send
+      someone, so a pasted link needs to show the photograph rather than a
+      bare title. `ogImage` is set per page (lead photo of the collection, the
+      first hero on the home page, the portrait on About) and must be
+      absolute, hence site.url. -#}
+  {%- set ogImage = ogImage or portfolio[0].works[0].display %}
+  <title>{{ pageTitle }}</title>
+  <meta name="description" content="{{ pageDesc }}">
   <meta name="theme-color" content="#efede6">
+  {#- One theme, deliberately (see style.css). Saying so stops browsers
+      auto-darkening scrollbars and form controls against a bone page. -#}
+  <meta name="color-scheme" content="light">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
+
+  {#- The hero photograph is the home page's LCP. Preloading it with the same
+      srcset/sizes the <img> carries starts the download during head parse,
+      rather than waiting for the render-blocking CSS to clear first.
+      Only the AVIF ladder is preloaded, and with `type` so browsers that
+      can't decode it skip the hint entirely and simply discover the <img>'s
+      webp as usual. Preloading both would make every modern browser download
+      the photograph twice. -#}
+  {%- if page.url == "/" and portfolio[0].works[0].srcsetAvif %}
+  <link rel="preload" as="image" type="image/avif" fetchpriority="high"
+        imagesrcset="{{ portfolio[0].works[0].srcsetAvif }}" imagesizes="100vw">
+  {%- endif %}
+
+  <link rel="canonical" href="{{ site.url }}{{ page.url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ site.name }}">
+  <meta property="og:title" content="{{ pageTitle }}">
+  <meta property="og:description" content="{{ pageDesc }}">
+  <meta property="og:url" content="{{ site.url }}{{ page.url }}">
+  <meta property="og:image" content="{{ site.url }}{{ ogImage }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ pageTitle }}">
+  <meta name="twitter:description" content="{{ pageDesc }}">
+  <meta name="twitter:image" content="{{ site.url }}{{ ogImage }}">
+  {#- Fonts are self-hosted (see the @font-face block in style.css). Preload
+      the two faces that carry above-the-fold text on every page: Archivo 400
+      for body copy and Plex Mono 400 for the wordmark, nav and all the small
+      label text. Archivo 600 is left to normal discovery - on the home page
+      its first use (the collection names) is below the fold. -#}
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/archivo-400.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/ibm-plex-mono-400.woff2" crossorigin>
+  <link rel="stylesheet" href="{{ '/css/style.css' | bust }}">
 </head>
 {%- set isAbout = page.url == "/about/" -%}
 <body class="{% if page.url == '/' %}is-home{% endif %}">
+
+  <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="site-header" data-site-header>
     <div class="wrap header-inner">
@@ -25,7 +70,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main" tabindex="-1">
     {{ content | safe }}
   </main>
 
@@ -37,10 +82,13 @@
   </footer>
 
   <!-- Lightbox (populated by lightbox.js when a print is opened) -->
-  <div class="lightbox" data-lightbox hidden>
+  <div class="lightbox" data-lightbox hidden
+       role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
     <img class="lightbox__img" data-lightbox-img src="" alt="" draggable="false">
-    <div class="lightbox__meta" data-lightbox-meta>
-      <div class="lightbox__title" data-lightbox-title></div>
+    {#- aria-live: stepping with the arrow keys swaps the caption in place,
+        which is otherwise completely silent to a screen reader. -#}
+    <div class="lightbox__meta" data-lightbox-meta aria-live="polite">
+      <div class="lightbox__title" id="lightbox-title" data-lightbox-title></div>
       <div class="lightbox__loc" data-lightbox-loc></div>
       <div class="lightbox__story" data-lightbox-story hidden></div>
       <div class="lightbox__count" data-lightbox-count></div>
@@ -50,10 +98,10 @@
     <button class="lightbox__nav lightbox__nav--next" data-lightbox-next aria-label="Next photograph">&rsaquo;</button>
   </div>
 
-  <script src="/js/flight.js" defer></script>
-  <script src="/js/transitions.js" defer></script>
-  <script src="/js/hero.js" defer></script>
-  <script src="/js/lightbox.js" defer></script>
-  <script src="/js/reveal.js" defer></script>
+  <script src="{{ '/js/flight.js' | bust }}" defer></script>
+  <script src="{{ '/js/transitions.js' | bust }}" defer></script>
+  <script src="{{ '/js/hero.js' | bust }}" defer></script>
+  <script src="{{ '/js/lightbox.js' | bust }}" defer></script>
+  <script src="{{ '/js/reveal.js' | bust }}" defer></script>
 </body>
 </html>

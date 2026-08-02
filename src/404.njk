@@ -1,0 +1,16 @@
+---
+layout: base.njk
+title: Page not found
+permalink: /404.html
+description: "That page isn't here. Head back to the portfolio to see the collections."
+eleventyExcludeFromCollections: true
+---
+{#- GitHub Pages serves /404.html automatically for any unmatched URL. Without
+    this file it serves its own generic one, which drops the visitor out of the
+    site entirely. -#}
+<section class="notfound">
+  <div class="notfound__code">404</div>
+  <h1 class="notfound__title">That page isn't here</h1>
+  <p class="notfound__note">The link might be out of date, or I may have moved something. The collections are all still here.</p>
+  <a class="notfound__back" href="/">&larr; ALL COLLECTIONS</a>
+</section>

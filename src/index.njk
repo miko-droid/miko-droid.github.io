@@ -12,6 +12,10 @@ description: "Landscape photography by Michael Robinson. Rainforest and waterfal
   {%- set heroes = heroes.concat([col.works[pick[1] % col.works.length]]) -%}
 {%- endfor -%}
 
+{#- The hero is deliberately wordless, so the page's heading is for assistive
+    tech and search results only. -#}
+<h1 class="sr-only">Michael Robinson · Landscape Photography</h1>
+
 <section class="hero" data-hero>
   <div class="hero__sticky">
     <div class="hero__frame" data-hero-frame>
@@ -21,29 +25,28 @@ description: "Landscape photography by Michael Robinson. Rainforest and waterfal
             data-src/data-srcset after the window load event — that keeps two
             full-viewport images out of the initial payload (matters on 4G). -#}
         {%- for h in heroes %}
-        <img class="hero__slide{% if loop.first %} is-active{% endif %}"
-             {% if loop.first %}src="{{ h.display }}" srcset="{{ h.heroSrcset }}"{% else %}data-src="{{ h.display }}" data-srcset="{{ h.heroSrcset }}"{% endif %}
-             sizes="100vw" alt="" draggable="false" decoding="async"
-             data-hero-slide
-             data-cap-left="{{ h.title | upper }}"
-             data-cap-right="{{ h.meta | upper }}"
-             {% if not loop.first %}style="opacity:0"{% endif %}>
+        <picture>
+          {#- hero.js hydrates the non-first slides after window load, so the
+              <source> carries data-srcset alongside the <img>'s. -#}
+          <source type="image/avif" data-hero-source sizes="100vw"
+                  {% if loop.first %}srcset="{{ h.srcsetAvif }}"{% else %}data-srcset="{{ h.srcsetAvif }}"{% endif %}>
+          <img class="hero__slide{% if loop.first %} is-active{% endif %}"
+               {% if loop.first %}src="{{ h.display }}" srcset="{{ h.srcset }}" fetchpriority="high"{% else %}data-src="{{ h.display }}" data-srcset="{{ h.srcset }}"{% endif %}
+               sizes="100vw" alt="" draggable="false" decoding="async"
+               width="{{ h.width }}" height="{{ h.height }}"
+               data-hero-slide
+               data-cap-left="{{ h.title | upper }}"
+               data-cap-right="{{ h.meta | upper }}"
+               {% if not loop.first %}style="opacity:0"{% endif %}>
+        </picture>
         {%- endfor %}
         <div class="hero__dim" data-hero-dim></div>
       </div>
       <div class="hero__title" data-hero-title>
-        <div class="hero__title-inner">
-          <div class="hero__headline">Michael Robinson Landscape Photography</div>
-          <div class="hero__sub">CANOPY · DAWN &amp; DUSK · WATER · FORM &amp; TEXTURE · FILM &amp; FACES</div>
-        </div>
         <div class="hero__scroll" aria-hidden="true">
           <span class="hero__scroll-word">SCROLL</span>
           <span class="hero__scroll-arrow"></span>
         </div>
-      </div>
-      <div class="hero__marks" data-hero-marks aria-hidden="true">
-        <span class="mark mark--tl"></span><span class="mark mark--tr"></span>
-        <span class="mark mark--bl"></span><span class="mark mark--br"></span>
       </div>
     </div>
     <div class="hero__cap" data-hero-cap aria-hidden="true">
@@ -61,9 +64,16 @@ description: "Landscape photography by Michael Robinson. Rainforest and waterfal
         first print on touchstart, before the tap even completes. -#}
     <a class="col-row" href="/{{ c.slug }}/" style="--i:{{ loop.index0 }}"
        data-first-src="{{ c.works[0].display }}"
-       data-first-srcset="{{ c.works[0].srcset }}">
+       data-first-srcset="{{ c.works[0].srcset }}"
+       data-first-srcset-avif="{{ c.works[0].srcsetAvif }}"
+       data-first-sizes="{{ c.works[0].sizes }}">
       <span class="col-row__left">
-        <img class="col-row__thumb" src="{{ c.works[0].thumb }}" alt="{{ c.name }}" draggable="false" loading="lazy" decoding="async">
+        {#- Decorative: the collection name is right there in .col-row__name. -#}
+        <picture>
+          {%- if c.works[0].thumbAvif %}<source type="image/avif" srcset="{{ c.works[0].thumbAvif }}">{% endif %}
+          <img class="col-row__thumb" src="{{ c.works[0].thumb }}" alt="" width="64" height="46"
+               draggable="false" loading="lazy" decoding="async">
+        </picture>
         <span class="col-row__text">
           <span class="col-row__name">{{ c.name }}</span>
           <span class="col-row__note">{{ c.note }}</span>

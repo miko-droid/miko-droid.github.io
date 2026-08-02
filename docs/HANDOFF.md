@@ -45,15 +45,12 @@ image); after that it's fast — already-processed images are reused.
    the order within the collection, the rest becomes the default title
    (`12-cedar-creek.jpg` → "Cedar creek"). See `docs/IMAGE-NAMING.md`.
 2. Run `npm start` (or `npm run build`). The photo is watermarked with your
-   signature, downsized, oriented, and given a REC number automatically.
+   signature, downsized and oriented automatically.
    A new blank row also appears at the bottom of `photos/catalogue.csv`
    with `status` = `new`.
 3. Open `photos/catalogue.csv` (Excel or Google Sheets is fine) and fill in
    the row — see below. Rebuild and check it at localhost:8080.
 4. Happy? `npm run deploy`, then commit and push (see Publishing).
-
-REC numbers renumber themselves across the whole portfolio in collection
-order — that's expected when you insert a photo.
 
 ## The catalogue (`photos/catalogue.csv`)
 
@@ -83,16 +80,19 @@ Each entry has:
 - `intro` — the one-liner at the top of the collection's own page
 
 To add one: make the folder, add an entry, drop photos in. To reorder:
-reorder the entries (REC numbers follow). Empty folders stay hidden until
+reorder the entries. Empty folders stay hidden until
 they have photos. `photos/_holding/` is not a collection — it's the parking
 spot for shots that don't fit anywhere yet.
 
 ## Editing words
 
 - **Name, tagline, email, Instagram, prints line:** `src/_data/site.json`
-- **Home page statement:** `src/index.njk`
-- **About page text:** `src/about.njk`
-- **About portrait:** replace `src/images/portrait.jpg`
+- **Collection names, home-page notes and intros:** `photos/portfolio.config.json`
+- **About page text:** `src/about.njk` (the home page has no words by design)
+- **About portrait:** replace `src/images/portrait.jpg`, then regenerate the six
+  published copies (three widths, in both formats):
+  `node -e "const s=require('sharp');[480,720,960].forEach(w=>{s('src/images/portrait.jpg').resize({width:w}).webp({quality:80}).toFile('src/images/portrait-'+w+'.webp');s('src/images/portrait.jpg').resize({width:w}).avif({quality:50,effort:4}).toFile('src/images/portrait-'+w+'.avif')})"`.
+  Only the resized copies are published; the `.jpg` stays as your master.
 - Past copy drafts live in `docs/SITE-COPY*.md` for reference.
 
 Preview with `npm start`, then deploy + push as usual.

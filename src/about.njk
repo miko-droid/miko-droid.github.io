@@ -2,29 +2,36 @@
 layout: base.njk
 title: About
 permalink: /about/
+ogImage: /images/portrait.webp
 description: "About Michael Robinson, a photographer drawn back to the rainforest of the Scenic Rim, with landscapes from across Australia and portraits on 35mm film. Prints available."
 ---
 
 <section class="about">
   <div class="about__portrait-frame">
+    {#- The "Portrait" placeholder and its inline onerror handler are gone:
+        they existed while the photo was still missing, and the handler was
+        the site's only inline script. -#}
     <div class="about__portrait">
-      <img class="about__portrait-img" src="/images/portrait.jpg" alt="Michael Robinson"
-           draggable="false" onerror="this.style.display='none';this.parentNode.classList.add('is-empty')">
-      <span class="about__portrait-ph" aria-hidden="true">Portrait</span>
+      {#- Rendered at min(320px, 76vw) wide, so even a 3x phone only needs
+          ~900px across. It used to ship the single 960px webp to everyone. -#}
+      <picture>
+        <source type="image/avif" sizes="(max-width: 460px) 76vw, 320px"
+                srcset="/images/portrait-480.avif 480w, /images/portrait-720.avif 720w, /images/portrait-960.avif 960w">
+        <img class="about__portrait-img" src="/images/portrait-720.webp" alt="Michael Robinson"
+             srcset="/images/portrait-480.webp 480w, /images/portrait-720.webp 720w, /images/portrait-960.webp 960w"
+             sizes="(max-width: 460px) 76vw, 320px"
+             width="960" height="1280" decoding="async" draggable="false">
+      </picture>
     </div>
-    <span class="marks" aria-hidden="true">
-      <span class="mark mark--tl"></span><span class="mark mark--tr"></span>
-      <span class="mark mark--bl"></span><span class="mark mark--br"></span>
-    </span>
   </div>
 
   <div class="about__body">
-    <div class="about__label">ABOUT</div>
+    <h1 class="about__label">ABOUT</h1>
     <p>Hi, I'm Michael. I photograph landscapes around South East Queensland - the rainforest, the ranges, the coast - and wherever else the car ends up.</p>
-    <p>Being out there is honestly the point. Fog moving through the beech forest, first light on big country, a beach before anyone else is on it. The camera gives me a reason to be in those places at those hours, and the photos are my way of bringing a bit of it back - hopefully some of it lands for you too.</p>
-    <p>I keep going back to the same tracks around the Scenic Rim in different weather and different light; the rest come from travelling around. Everything on the site is a keeper - the ones I'd print and hang at home.</p>
+    <p>Being out there is honestly the point. Fog moving through the beech forest, first light on big country, a beach before anyone else is on it. The camera gives me a reason to be in those places at those hours, and the photos are what I bring back.</p>
+    <p>I keep going back to the same tracks around the Scenic Rim in different weather and different light; the rest come from travelling around. The ones on here are the ones I'd print and hang at home.</p>
     <p>I also photograph people. Portraits, the odd wedding, friends - often on 35mm film, because it makes me slow down.</p>
-    <p>Thanks for stopping by. If you'd like a print, or just want to talk photos, my email's below - and I'm on Instagram at <a href="{{ site.instagram }}" target="_blank" rel="noopener">@mickjphotos</a>.</p>
+    <p>Thanks for stopping by. If you'd like a print, or just want to talk photos, my email's below.</p>
 
     <dl class="about__contact">
       <div>

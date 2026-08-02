@@ -5,13 +5,15 @@
 //   1. reads each collection folder in order,
 //   2. stamps a quiet "© MICHAEL ROBINSON" into the bottom-right corner of
 //      the pixels themselves (see markSvg below),
-//   3. downsizes every original to web-resolution webp (max 3200px, and only
-//      the home hero ever serves above 2200px) with @11ty/eleventy-img — the
-//      full-res files are NEVER published, so the largest image anyone can
-//      pull from the site is a downsized, watermarked copy,
+//   3. downsizes every original to web-resolution webp (max 2200px) with
+//      @11ty/eleventy-img — the full-res files are NEVER published, so the
+//      largest image anyone can pull from the site is a downsized,
+//      watermarked copy,
 //   4. detects orientation from the real pixel dimensions,
-//   5. assigns a continuous REC catalogue number across the whole portfolio,
-//   6. hides any collection that has no photos yet.
+//   5. hides any collection that has no photos yet.
+//
+// (A continuous "REC" catalogue number used to be assigned here. It was never
+// rendered anywhere and was dropped on 2026-07-31 — see purpose/PURPOSE.md.)
 //
 // Caption data (title/location/year) and Michael's own tracking notes live in
 // one spreadsheet, photos/catalogue.csv — see loadCatalogue below. Any photo
@@ -34,13 +36,42 @@ const CATALOGUE_PATH = path.join(PHOTOS_DIR, "catalogue.csv");
 const CATALOGUE_FIELDS = ["collection", "filename", "title", "location", "year", "status", "notes", "story"];
 const OUTPUT_DIR = "_site/img";
 const URL_PATH = "/img/";
-// thumb / display / lightbox / hero — no full-res. The 3200 tier exists only
-// for the full-viewport home hero (high-DPI screens need more than 2200px
-// across 100vw); everything else — collection pages, lightbox — is capped at
-// 2200 via `srcset`/`full` below.
-const WIDTHS = [700, 1400, 2200, 3200];
+// thumb / display / lightbox / hero — no full-res. Everything, the home hero
+// included, is capped at 2200. The 3200 tier was dropped 2026-08-02: it only
+// ever won on desktop, where `sizes="100vw"` made it the LCP at up to 3.5MB
+// for one photograph (1.86MB for the hero on a 1440x900 laptop, plus another
+// 950KB for the two slideshow images behind it). A 2200 across a 1440 CSS-px
+// viewport is still ~1.5x, and phones never picked 3200 at all. The 200 tier
+// is only ever the home page's 64x46 collection thumbnails, which used to be
+// served the 700 (five of them, on the page most likely to be opened on a
+// phone).
+const WIDTHS = [200, 700, 1400, 2200];
+// webp is the baseline; avif rides alongside it in a <source> and is ~30%
+// lighter for these photographs. Order matters only for readability - the
+// templates decide precedence.
+const FORMATS = ["webp", "avif"];
 const WEB_MAX = 2200;
+// Named tiers, so inserting a width can't silently change which file a field
+// points at. `display` in particular was `web[1]`, which meant 1400 before the
+// 200 tier existed and would have become 700 after it.
+const THUMB_W = 200;
+const DISPLAY_W = 1400;
+// The thumbnail is far too small to be a candidate for any print `sizes`
+// value; leaving it in the srcset only risks a browser picking it.
+const SRCSET_MIN = 700;
 const IMG_RE = /\.(jpe?g|png|tiff?|webp)$/i;
+// The `sizes` attribute for each print shape, derived from the widths the CSS
+// actually renders (.print--l/--pano/--p in style.css). Emitted with the image
+// so the templates and transitions.js's warm() prefetch can never drift apart:
+// they all read this string rather than each hardcoding their own copy, which
+// is how a print ended up advertising 90vw while the CSS drew it at 86vw.
+const PRINT_SIZES = {
+  l: "(max-width: 820px) 86vw, 760px",
+  pano: "(max-width: 820px) 92vw, 960px",
+  // Portrait prints are height-capped (max-height: min(70svh, 680px)), so the
+  // rendered width depends on the photo's ratio; 680 is the tallest it gets.
+  p: "(max-width: 820px) 86vw, 680px",
+};
 
 // "01-old-growth" -> "Old growth"
 function titleFromName(name) {
@@ -237,57 +268,96 @@ async function watermarked(file, tmpPath) {
   return tmpPath;
 }
 
-// metadata.webp-shaped entries -> the work's image fields.
-function shapeImage(sizes) {
-  // Everything except the home hero serves from the ≤2200 tiers.
+// eleventy-img metadata -> the work's image fields. `webp` is the baseline
+// every browser gets; `avif` is the same ladder ~30% lighter, offered through
+// a <source> so anything that can't decode it silently falls back.
+function shapeImage(sizes, avifSizes) {
   const web = sizes.filter((s) => s.width <= WEB_MAX);
   const largest = web[web.length - 1] || sizes[sizes.length - 1];
+  // Pick by width, never by index — see the tier constants above.
+  const at = (w) => sizes.find((s) => s.width === w) || largest;
+  const prints = web.filter((s) => s.width >= SRCSET_MIN);
   const ratio = largest.width / largest.height;
   const o = ratio > 1.7 ? "pano" : ratio < 0.9 ? "p" : "l";
+  const setOf = (list) => {
+    const w = list.filter((s) => s.width <= WEB_MAX);
+    const p = w.filter((s) => s.width >= SRCSET_MIN);
+    return (p.length ? p : w).map((s) => `${s.url} ${s.width}w`).join(", ");
+  };
+  const avif = avifSizes || [];
+  const avifLargest = avif.filter((s) => s.width <= WEB_MAX).pop();
   return {
-    thumb: sizes[0].url,
-    display: (web[1] || largest).url,
+    thumb: at(THUMB_W).url,
+    thumbAvif: (avif.find((s) => s.width === THUMB_W) || {}).url || "",
+    display: at(DISPLAY_W).url,
     full: largest.url,
-    srcset: web.map((s) => `${s.url} ${s.width}w`).join(", "),
-    heroSrcset: sizes.map((s) => `${s.url} ${s.width}w`).join(", "),
+    fullAvif: (avifLargest || {}).url || "",
+    // One srcset for every context now that the hero shares the 2200 ceiling.
+    // (There used to be a separate `heroSrcset` carrying the 3200 tier.)
+    srcset: setOf(sizes),
+    srcsetAvif: avif.length ? setOf(avif) : "",
+    sizes: PRINT_SIZES[o],
     width: largest.width,
     height: largest.height,
+    // Emitted into the print's style attribute so the CSS can give portrait
+    // prints a definite width. See .print--p in style.css.
+    ratio: Math.round(ratio * 10000) / 10000,
     o,
   };
 }
 
+// eleventy-img never upscales: a requested width past the original's is
+// clamped to the original, and duplicates collapse. So the tiers a photo
+// actually produces depend on its own width, and the cache check below has to
+// look for those rather than for WIDTHS. Getting this wrong is not theoretical:
+// the two 2075px film scans could never satisfy a check that wanted a 2200
+// file, so they re-ran the full-res watermark composite on every single build.
+// Reads the header only, not the pixels, so it stays cheap on 80MB originals.
+async function tiersFor(file) {
+  const m = await sharp(file).metadata();
+  // watermarked() bakes EXIF orientation in with .rotate() before eleventy-img
+  // sees the file, so the width that matters is the oriented one.
+  const srcW = m.orientation && m.orientation >= 5 ? m.height : m.width;
+  return [...new Set(WIDTHS.map((w) => Math.min(w, srcW)))];
+}
+
 async function processImage(file, slug) {
   const base = path.basename(file, path.extname(file));
-  const outName = (w) => `${slug}-${base}-${w}.webp`;
+  const outName = (w, f) => `${slug}-${base}-${w}.${f}`;
 
   // Fast path: the watermark composite happens before eleventy-img ever sees
   // the image, so its own output-exists check can't save us from re-running
   // it (full-res composite + encode, seconds per photo) on every build. If
-  // all four tiers are already on disk, reuse them. (An original narrower
-  // than the largest WIDTH never produces that tier, so it would re-process
-  // each build — exports are all well past 3200px, so not worth guarding.)
-  const outPaths = WIDTHS.map((w) => path.join(OUTPUT_DIR, outName(w)));
-  if (outPaths.every((p) => fs.existsSync(p))) {
-    const sizes = await Promise.all(
-      outPaths.map(async (p, i) => {
-        const m = await sharp(p).metadata();
-        return { url: URL_PATH + outName(WIDTHS[i]), width: m.width, height: m.height };
-      })
-    );
-    return shapeImage(sizes);
+  // every tier this photo can produce, in every format, is already on disk,
+  // reuse them.
+  const widths = await tiersFor(file);
+  const pathsFor = (f) => widths.map((w) => path.join(OUTPUT_DIR, outName(w, f)));
+  if (FORMATS.every((f) => pathsFor(f).every((p) => fs.existsSync(p)))) {
+    const read = async (f) =>
+      Promise.all(
+        pathsFor(f).map(async (p, i) => {
+          const m = await sharp(p).metadata();
+          return { url: URL_PATH + outName(widths[i], f), width: m.width, height: m.height };
+        })
+      );
+    return shapeImage(await read("webp"), await read("avif"));
   }
 
   const tmpPath = path.join(os.tmpdir(), `mr-watermark-${slug}-${base}.jpg`);
   try {
     const metadata = await Image(await watermarked(file, tmpPath), {
       widths: WIDTHS,
-      formats: ["webp"],
+      formats: FORMATS,
       outputDir: OUTPUT_DIR,
       urlPath: URL_PATH,
+      // avif at 50 is the sweet spot for these photographs: ~30% under the
+      // webp at visually the same quality. At 65 it comes out *larger* than
+      // the webp, which is the whole reason for pinning it explicitly.
+      sharpAvifOptions: { quality: 50, effort: 4 },
       // stable, readable output names: rainforest-old-growth-1400.webp
       filenameFormat: (id, src, width, format) => `${slug}-${base}-${width}.${format}`,
     });
-    return shapeImage(metadata.webp);
+    return shapeImage(metadata.webp, metadata.avif);
   } finally {
     fs.rmSync(tmpPath, { force: true });
   }
@@ -303,7 +373,6 @@ module.exports = async function () {
   let catalogueChanged = false;
 
   const out = [];
-  let rec = 0;
 
   for (const col of config.collections) {
     const dir = path.join(PHOTOS_DIR, col.dir);
@@ -337,9 +406,7 @@ module.exports = async function () {
       }
 
       const img = await processImage(path.join(dir, file), col.slug);
-      rec += 1;
       works.push({
-        rec: String(rec).padStart(3, "0"),
         title: entry.title || titleFromName(base),
         loc: entry.location,
         year: entry.year,
@@ -356,8 +423,6 @@ module.exports = async function () {
       note: col.note,
       intro: col.intro,
       count: works.length,
-      recFirst: works[0].rec,
-      recLast: works[works.length - 1].rec,
       works,
     });
   }

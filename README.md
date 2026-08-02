@@ -1,8 +1,8 @@
 # Michael Robinson — Landscape Photography
 
 A photography portfolio built with [Eleventy](https://www.11ty.dev/). Landscape
-work from South East Queensland — rainforest, ranges and coast — catalogued by
-REC number.
+work from South East Queensland — rainforest, ranges and coast — plus portraits
+on film.
 
 ## Quick start
 
@@ -23,22 +23,35 @@ npm run build   # outputs the finished site to _site/
 
 Full-resolution originals live in a **private, git-ignored `photos/` folder** and
 never leave your machine. On every build, the site **downsizes them to
-web-resolution webp** (max 2200px, three sizes) — so the largest image anyone can
-save from the site is a downsized copy, never your full-res file.
+web-resolution webp** and stamps your signature into the pixels — so the largest
+image anyone can save from the site is a downsized, watermarked copy, never your
+full-res file.
+
+Four sizes are generated per photo — `200` (home-page thumbnails) and `700 /
+1400 / 2200` (everything else, hero included) — each in **both AVIF and webp**.
+Every photo is served through `<picture>`: browsers that can decode AVIF take
+it and save around 30% of the bytes, the rest fall back to webp.
+
+A `3200` tier used to exist for the home hero. It was dropped on 2026-08-02: no
+phone ever selected it, and on desktop it made the hero a 1.9MB LCP (up to
+3.5MB for the heaviest photo). Capping at 2200 cut the home page from 2.84MB to
+1.44MB on a laptop; AVIF took it the rest of the way to 0.93MB.
 
 ### Folder layout
 
 ```
 photos/                          ← git-ignored, never published
 ├── portfolio.config.json        ← the collections, in order
-├── catalogue.csv                ← every photo: title / location / year / status / notes
-├── rainforest-canopy/
-│   ├── 01-old-growth.jpg        ← your originals (any resolution)
-│   └── 02-moss-and-fog.jpg
-├── the-ranges/
-├── coastal-studies/
-├── form-and-texture/
-└── film-and-faces/              ← empty; add photos and it appears
+├── catalogue.csv                ← every photo: title / location / year / status / notes / story
+├── signature.png                ← the watermark source
+├── canopy/
+│   ├── 05-fingers-of-god.jpg    ← your originals (any resolution)
+│   └── 10-under-the-beeches.jpg
+├── dawn-dusk/
+├── water/
+├── form-texture/
+├── film-faces/
+└── _holding/                    ← not a collection; parking spot for undecided shots
 ```
 
 ### To add a photograph
@@ -47,8 +60,8 @@ photos/                          ← git-ignored, never published
 2. Name it `NN-short-title.jpg` — the `NN-` prefix sets the order; the rest
    becomes the title (`03-cedar-creek.jpg` → "Cedar creek") unless you set one
    in the catalogue (below).
-3. `npm start` (or `npm run build`). It's downsized, oriented, numbered, and
-   live. **REC numbers renumber themselves** across the whole portfolio.
+3. `npm start` (or `npm run build`). It's watermarked, downsized, oriented and
+   live.
 
 Orientation (portrait / landscape / panorama sizing) is detected automatically
 from each image's real dimensions — you don't set it.
@@ -58,14 +71,16 @@ from each image's real dimensions — you don't set it.
 `photos/catalogue.csv` is a plain spreadsheet — open it in Excel, Numbers, or
 Google Sheets. One row per photo:
 
-| collection | filename | title | location | year | status | notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| rainforest-canopy | 03-cedar-creek | | Springbrook | 2026 | new | |
+| collection | filename | title | location | year | status | notes | story |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| canopy | 03-cedar-creek | | Springbrook | 2026 | new | | |
 
 - **collection** / **filename** are how the row is matched to the actual file
   — leave them alone.
 - **title** — optional; leave blank to use the name-derived title.
 - **location** / **year** — feed the "LOCATION · YEAR" caption on the site.
+- **story** — an optional plain sentence about the day, shown under the caption
+  and in the lightbox. Blank shows nothing, and blank is better than forced.
 - **status** / **notes** — yours to use however's useful (e.g. mark `new` ones
   `published` once you're happy, jot a note to reshoot something in better
   light). The site doesn't read these.
@@ -79,35 +94,37 @@ the build prints a warning instead of silently dropping the row.
 ### To add a collection
 
 Make a new folder in `photos/`, add an entry to `photos/portfolio.config.json`
-(`dir`, `slug`, `name`, `note`), and drop photos in. A new page and home-page
-row generate automatically. Empty collections stay hidden until they have
-photos — which is why **Film & Faces** won't show until you add frames to
-`photos/film-and-faces/`.
+(`dir`, `slug`, `name`, `note`, `intro`), and drop photos in. A new page and
+home-page row generate automatically. Empty collections stay hidden until they
+have photos.
 
-The current catalogue:
+The current portfolio (52 photographs):
 
-| REC       | Collection          |
-| --------- | ------------------- |
-| 001–005   | Rainforest / Canopy |
-| 006–008   | The Ranges          |
-| 009–011   | Coastal Studies     |
-| 012–013   | Form & Texture      |
-| 014–…     | Film & Faces (add)  |
+| Collection     | URL              | Photographs |
+| -------------- | ---------------- | ----------- |
+| Canopy         | `/canopy/`       | 17          |
+| Dawn & Dusk    | `/dawn-dusk/`    | 9           |
+| Water          | `/water/`        | 13          |
+| Form & Texture | `/form-texture/` | 9           |
+| Film & Faces   | `/film-faces/`   | 4           |
+
+The **first photo in each folder** does triple duty: home-page thumbnail, the
+image shown when a link to that collection is shared, and (for the first few
+collections) a home hero slide. Lead each collection with a strong image.
 
 ## Words and details
 
-- **Home statement / About text:** `src/index.njk` and `src/about.njk`.
-- **Site name, email, location:** `src/_data/site.json`.
-- **About portrait:** drop `src/images/portrait.jpg` (a placeholder shows until
-  you do).
+- **Collection names, notes and intros:** `photos/portfolio.config.json`.
+- **About text:** `src/about.njk`. The home page is deliberately wordless.
+- **Site name, tagline, email, Instagram, prints line:** `src/_data/site.json`.
+- **About portrait:** `src/images/portrait.jpg` is the committed master and is
+  *not* published; `portrait.webp` beside it is what ships. Regenerate it with
+  `sharp` if you replace the master.
 
 ## Look and feel
 
-- Styling is all in `src/css/style.css` (theme variables at the top).
-- **Night theme:** add `data-theme="night"` to `<html>` in
-  `src/_includes/base.njk`.
-- **Crop marks** around each print: add `class="crop-marks"` to `<html>` (off by
-  default).
+Styling is all in `src/css/style.css`, with the palette and motion variables at
+the top. One theme, one stylesheet, no build step for CSS.
 
 ## Deploy
 
@@ -129,14 +146,27 @@ collections, copy edits, custom domain setup): **[docs/HANDOFF.md](docs/HANDOFF.
 photos/               Private originals (git-ignored) + config + catalogue.csv
 src/
 ├── _data/
-│   ├── portfolio.js   Build-time pipeline: downsize, orient, number, assemble
-│   └── site.json      Name, tagline, email, location
-├── _includes/base.njk Page shell: header, footer, fonts, lightbox
+│   ├── portfolio.js   Build-time pipeline: watermark, downsize, orient, assemble
+│   └── site.json      Name, tagline, url, email, Instagram, prints line
+├── _includes/base.njk Page shell: head/meta, header, footer, lightbox
 ├── css/style.css      All styling
-├── js/                hero.js · lightbox.js · transitions.js · flight.js
-├── images/            About portrait (optional)
-├── index.njk          Home (hero + statement + the record)
+├── js/                flight.js · transitions.js · hero.js · lightbox.js · reveal.js
+├── images/            About portrait (master .jpg + published .webp)
+├── index.njk          Home (full-bleed hero + the collection list)
 ├── collection.njk     One page per collection (generated)
-└── about.njk          About + contact
+├── about.njk          About + contact
+├── 404.njk            Served by GitHub Pages for any unmatched URL
+├── sitemap.njk        → /sitemap.xml
+└── robots.njk         → /robots.txt
 _site/                 Build output (git-ignored) — this is what you deploy
 ```
+
+Notes for anyone editing the front-end:
+
+- `hero.js` must not read layout inside its scroll handler. Everything it needs
+  is measured once in `measure()`; a `getComputedStyle` or
+  `getBoundingClientRect` after the frame's style writes forces a synchronous
+  reflow on every scroll frame.
+- Image tiers are picked **by width** in `portfolio.js`, never by array index.
+- `.claude/skills/verify/SKILL.md` has the recipe for driving the built site in
+  headless Chrome to check changes.

@@ -21,9 +21,9 @@
   // image still in flight at bind time; images already complete (cache,
   // back-nav, the eager first two) are never touched so they can't blink.
   // The CSS transition sits on .is-loaded, so .is-pending snaps to opacity 0
-  // instantly. The reduced bail is load-bearing: the reduced-motion CSS
-  // zeroes animations but not transitions, so these classes must never be
-  // added there.
+  // instantly. Skipped entirely under reduced motion: the CSS there now zeroes
+  // transition-duration as well as animation-duration, so the fade would
+  // collapse to a pop anyway — better not to touch the images at all.
   function bindImgFade() {
     if (reduced) return; // pop is acceptable under reduced motion
     document.querySelectorAll(".print__img").forEach(function (img) {
@@ -64,10 +64,20 @@
       { rootMargin: "0px" }
     );
 
+    // All the reads, then all the writes. Interleaved, this was a classic
+    // layout-thrash loop, and it runs immediately after transitions.js has
+    // replaced <main>, so each forced reflow would be a full-document layout.
+    // It is only harmless today because .will-rise sets opacity and nothing
+    // else; the moment anyone gives that class a transform or a size it turns
+    // into N synchronous reflows. Cheaper to not depend on that.
+    var vh = window.innerHeight;
+    var offscreen = [];
     blocks.forEach(function (b) {
       // A block already on screen (tall viewport, restored scroll position)
       // is never hidden at all — hiding it after first paint would flash.
-      if (b.getBoundingClientRect().top < window.innerHeight) return;
+      if (b.getBoundingClientRect().top >= vh) offscreen.push(b);
+    });
+    offscreen.forEach(function (b) {
       b.classList.add("will-rise");
       io.observe(b);
     });
