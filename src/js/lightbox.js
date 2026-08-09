@@ -417,6 +417,15 @@
     });
     closeTimer = setTimeout(function () {
       closeTimer = null;
+      // Landed. Put the photo back on its matt BEFORE fading the clone, never
+      // after: the clone is sitting exactly on the print's rect by now, so the
+      // real image appearing underneath it is invisible, and the fade then
+      // dissolves one photo into an identical one. Leaving it to finishClose
+      // (which also calls putBack, harmlessly, a second time) meant the clone
+      // spent its whole 220ms fade dissolving into an EMPTY matt — the photo
+      // washed out to bone white and then snapped back on. Same ordering the
+      // opening flight uses in flight.js's finish().
+      putBack();
       clone.style.opacity = "0";
       // Let the opacity transition play before finishClose removes the node.
       closeTimer = setTimeout(finishClose, t.fade);
