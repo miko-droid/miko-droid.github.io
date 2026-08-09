@@ -179,12 +179,18 @@
           requestAnimationFrame(function () {
             if (flight.done) return;
             var r2 = el.getBoundingClientRect();
-            var t = r2 && r2.width > 10 ? r2 : r;
+            // NOT `t` — that name holds this flight's durations, and shadowing
+            // it here made the landing timeout below read `t.dur` off a
+            // DOMRect. undefined means setTimeout fires on the next tick, so
+            // every flight "landed" ~1 frame in: the destination photo popped
+            // to full size while the clone was still 5% into its travel and
+            // fading out on top of it.
+            var to = r2 && r2.width > 10 ? r2 : r;
             // Now that the destination is known, upgrade to the compositor
             // path if the shape allows it. The clone is still sitting on
             // fromRect, so that is what we rebase from.
-            if (isUniform(fromRect, t)) rebase(clone, fromRect, t);
-            moveTo(clone, t);
+            if (isUniform(fromRect, to)) rebase(clone, fromRect, to);
+            moveTo(clone, to);
             setTimeout(function () {
               // Landed. Hold the clone over the frame until the real image
               // has pixels — finishing sooner would reveal an empty mat.
