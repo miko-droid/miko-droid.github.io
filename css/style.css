@@ -1,0 +1,829 @@
+/* ============================================================================
+   Michael Robinson — Landscape Photography
+   Ported from the Claude Design "Portfolio v5" spec.
+
+   One theme, "bone". A dark "night" palette and a set of corner registration
+   marks used to ship here unreachable; both were decided against (2026-07-31)
+   and removed rather than left dormant. See purpose/PURPOSE.md.
+   ============================================================================ */
+
+/* ---- Fonts -------------------------------------------------------------- */
+/* Self-hosted (2026-08-02). These used to come from fonts.googleapis.com,
+   which meant a render-blocking third-party stylesheet ahead of this file,
+   plus two extra DNS/TLS handshakes, before a single glyph could be measured.
+   Only the weights the stylesheet actually uses. The -ext faces cover
+   latin-ext; `unicode-range` means they are only ever fetched if a character
+   in that range is actually rendered, so they cost nothing on an English
+   page. Regenerate with the script noted in docs/HANDOFF.md. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/archivo-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/archivo-400-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/archivo-600.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/archivo-600-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  --paper: #efede6;
+  --ink: #1e2b22;
+  --muted: #4e584a;
+  --line: #d8d4c5;
+  --key: #1e2b22;
+  --acc: #41573a;
+  --matbg: #fffef9;
+  --shadow: 0 1px 2px rgba(30, 43, 34, .05), 0 14px 34px rgba(30, 43, 34, .12);
+  --shadow-hover: 0 2px 3px rgba(30, 43, 34, .06), 0 22px 48px rgba(30, 43, 34, .18);
+  --sans: 'Archivo', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* Motion. --ease drives micro-interactions (hover, nudge); --ease-soft is a
+     gentler settle used for entrances and the shrink/morph transitions. */
+  --ease: cubic-bezier(.3, .72, .2, 1);
+  --ease-soft: cubic-bezier(.16, 1, .3, 1);
+  /* The FLIP clone's timings. flight.js reads both of these once at startup
+     and schedules its own callbacks off them, so the JS can't drift out of
+     step with the transition it's waiting on (it used to hardcode 660 and 240
+     against a stylesheet saying 600 and 220). */
+  --flight-dur: .6s;
+  --flight-fade: .22s;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+}
+/* Keep the scrollbar's lane reserved even while the lightbox locks the page
+   (overflow: hidden) — otherwise the bar vanishing/reappearing reflows the
+   whole page sideways on open and close. Desktop pointers only: touch
+   devices have overlay scrollbars, and a reserved lane there narrows
+   clientWidth and leaves a paper strip beside the pixel-sized hero frame. */
+@media (hover: hover) and (pointer: fine) {
+  html { scrollbar-gutter: stable; }
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--acc); color: var(--paper); }
+
+/* height:auto alongside max-width: a width-constrained image that carries
+   explicit width/height attributes gets squashed rather than scaled without
+   it. Every image on the site currently sets its own height in a more
+   specific rule, so this is insurance for the next one. */
+img { max-width: 100%; height: auto; }
+
+a { color: inherit; }
+
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+/* ---- Keyframes ---------------------------------------------------------- */
+@keyframes mrUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes mrRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes mrFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mrFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes mrPulse { from { opacity: .5; transform: translateY(-3px); } to { opacity: 1; transform: translateY(4px); } }
+
+/* ---- Layout helpers ----------------------------------------------------- */
+/* Visible to assistive tech and search engines, not on screen. Used for the
+   headings on pages whose design has no visible heading (home, about). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  /* The insets are 0 in portrait; they matter when a notched phone is turned
+     on its side and the safe area eats into the left or right edge. */
+  padding-left: max(clamp(22px, 5vw, 54px), env(safe-area-inset-left));
+  padding-right: max(clamp(22px, 5vw, 54px), env(safe-area-inset-right));
+}
+
+/* Keyboard users land here first: with a fixed header over a 142svh hero,
+   tabbing otherwise walks the whole chrome before reaching a photograph. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--key);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-decoration: none;
+  /* Off-screen until focused, rather than display:none, so it stays in the
+     tab order. */
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* ---- Header ------------------------------------------------------------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  --hdr-fg: var(--ink);
+  --hdr-muted: var(--muted);
+  --hdr-active-line: var(--acc);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-block: 24px 14px;
+}
+.wordmark {
+  color: var(--hdr-fg);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .06em;
+  text-decoration: none;
+  /* Same padding + negative margin trick as .nav-link below: a 14px line of
+     text is a ~17px tap target otherwise. */
+  padding: 14px 8px 12px;
+  margin: -14px -8px -12px;
+  transition: opacity .25s var(--ease);
+}
+@media (hover: hover) {
+  .wordmark:hover { opacity: .72; }
+}
+.wordmark:active { opacity: .6; }
+.nav { display: flex; gap: 22px; }
+.nav-link {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .08em;
+  color: var(--hdr-muted);
+  text-decoration: none;
+  position: relative;
+  /* Padding + matching negative margin widen the touch target without moving
+     anything visually. It can only go so far downward, though: border-bottom
+     IS the active-page underline, so padding-bottom sets how far under the
+     text it sits and has to stay at 2px. */
+  padding: 14px 8px 2px;
+  margin: -14px -8px 0;
+  border-bottom: 1px solid transparent;
+  transition: color .25s var(--ease), border-color .25s var(--ease);
+}
+/* ...so the rest of the 44px comes from an invisible overlay instead, which
+   grows the hit area below the underline without moving it. The box was 34px. */
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: -10px;
+}
+@media (hover: hover) {
+  .nav-link:hover { color: var(--hdr-fg); }
+}
+/* Hover is gated to pointer devices (a latched :hover on touch left elements
+   stuck in their hover state), which leaves a phone with no press feedback at
+   all unless :active supplies it. */
+.nav-link:active { color: var(--hdr-fg); }
+.nav-link.is-active { color: var(--hdr-fg); border-bottom-color: var(--hdr-active-line); }
+
+/* On the home page the header floats over the immersive hero, light on the
+   image. hero.js interpolates these vars back to the bone palette on scroll. */
+body.is-home .site-header {
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: transparent;
+  border-bottom-color: transparent;
+  --hdr-fg: #f2efe3;
+  --hdr-muted: #dcd8c7;
+  --hdr-active-line: #dcd8c7;
+}
+
+main { display: block; }
+
+/* ---- Hero (immersive) --------------------------------------------------- */
+/* Height controls how much you scroll before the shrink finishes and the
+   collections rise in. hero.js keeps its animation math in sync with this:
+   142svh section − 100svh sticky = 42svh of travel = SHRINK 0.42 (matches v5). */
+.hero { position: relative; height: 142svh; }
+.hero__sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.hero__frame {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100svh;
+  /* Zero-width at rest: with any width, the near-white mat shows through the
+     transparent border as a 1px ring around the full-bleed photo (the stage
+     only fills the content box). hero.js widens it to 1px mid-shrink, once
+     the border colour actually starts fading in. */
+  border: 0 solid transparent;
+  background: var(--matbg);
+  /* No will-change here on purpose: width/height/padding are layout
+     properties, so the compositor cannot honour the hint — it only pinned a
+     full-viewport layer in GPU memory for the life of the page. */
+}
+/* The lift shadow lives on a pseudo-element and fades with opacity rather
+   than sitting on .hero__frame and transitioning `box-shadow`. Same picture,
+   but a box-shadow transition has to re-rasterise a 34px blur on every frame
+   of its 600ms run, and it runs precisely while the frame is still resizing.
+   Opacity on a separate layer is a compositor job. */
+.hero__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition: opacity .6s ease;
+}
+.hero__frame.is-lifted::after { opacity: 1; }
+.hero__stage { position: relative; width: 100%; height: 100%; overflow: hidden; background: #dedbcf; }
+.hero__slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 2.4s ease;
+}
+.hero__dim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Forest-tinted, not neutral grey — deepest at the base. */
+  background: linear-gradient(to top, rgba(14, 25, 18, .60) 0%, rgba(14, 25, 18, .22) 52%, rgba(14, 25, 18, .34) 100%);
+}
+.hero__title {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: max(300px, 38vh);
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(14, 25, 18, .68) 0%, rgba(14, 25, 18, .30) 48%, rgba(14, 25, 18, 0) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-bottom: 26px;
+  color: #f2efe3;
+}
+.hero__scroll { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px; animation: mrUp .8s var(--ease-soft) .2s both; }
+.hero__scroll-word {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .34em;
+}
+.hero__scroll-arrow {
+  position: relative;
+  width: 1px;
+  height: 46px;
+  background: currentColor;
+  animation: mrPulse 2.6s ease-in-out infinite alternate;
+}
+.hero__scroll-arrow::after {
+  content: "";
+  position: absolute;
+  left: -3.5px;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  border-left: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg);
+}
+.hero__cap {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  opacity: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.hero__cap-right { color: var(--acc); }
+
+/* ---- Collections list (home) ------------------------------------------- */
+.collections {
+  width: min(780px, 86vw);
+  margin: clamp(44px, 8vh, 78px) auto 0;
+  border-top: 1px solid var(--key);
+  padding-top: 22px;
+}
+.collections__label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .22em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  animation: mrUp .5s var(--ease-soft) .05s both;
+}
+.col-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  animation: mrUp .5s var(--ease-soft) both;
+  animation-delay: calc(var(--i) * 70ms + 120ms);
+  transition: opacity .4s var(--ease), transform .4s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+/* Hover effects are gated on a real hover-capable pointer throughout. On
+   touch, :hover latches after a tap, so an ungated .col-row:hover left the
+   row you just tapped sitting 8px to the right and dimmed until you tapped
+   something else. */
+@media (hover: hover) {
+  .col-row:hover { opacity: .78; transform: translateX(8px); }
+}
+/* The tap-highlight is suppressed above, so without this a tapped row gives
+   no feedback at all until the next page paints. Shorter than the hover
+   transition because a press should read as immediate. */
+.col-row:active { opacity: .7; transition-duration: .1s; }
+.col-row__left { display: flex; align-items: center; gap: 16px; }
+.col-row__thumb { width: 64px; height: 46px; object-fit: cover; flex: none; border: 1px solid var(--key); }
+.col-row__name { display: block; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+.col-row__note { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.col-row__count { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; flex: none; text-align: right; }
+
+/* ---- Collection page ---------------------------------------------------- */
+/* The whole screen fades in as a unit (matches the design's colAnim) — on
+   top of, not instead of, the collection__head/print-block animations below.
+   It's what makes the landing photo read as arriving even though the photo
+   itself (first print-block) has no rise animation of its own. */
+.collection { animation: mrFade .5s ease both; }
+.collection__bar {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 28px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--muted);
+}
+/* padding + negative margin: 11px mono text is a ~14px tap target on its own,
+   and this is the primary way back out of a collection on a phone. */
+.collection__back {
+  text-decoration: none;
+  padding: 14px 10px;
+  margin: -14px -10px;
+  /* The negative margin makes the enlarged target overlap .collection__head,
+     which comes later in the DOM and so painted over the bottom third of it -
+     a target that measured 45px but only accepted taps on the top 30. */
+  position: relative;
+  z-index: 1;
+  transition: color .25s var(--ease), transform .3s var(--ease);
+}
+@media (hover: hover) {
+  .collection__back:hover { color: var(--ink); transform: translateX(-4px); }
+}
+.collection__back:active { color: var(--ink); }
+.collection__head { text-align: center; padding: clamp(28px, 6vh, 58px) 24px 0; animation: mrUp .5s var(--ease-soft) both; }
+.collection__count { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--acc); }
+.collection__name { margin: 16px 0 0; font-size: clamp(30px, 4.5vw, 46px); font-weight: 600; letter-spacing: -.015em; text-wrap: balance; }
+.collection__note { font-size: 16px; color: var(--muted); margin-top: 12px; }
+
+.prints {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(28px, 4.5vh, 48px);
+  padding: clamp(46px, 8vh, 84px) 20px 0;
+}
+.print-block { display: flex; flex-direction: column; max-width: 100%; }
+/* Each print after the first rises in the first time it scrolls into view.
+   reveal.js hides below-fold blocks (.will-rise) and fires the one-shot rise
+   (.is-in) via IntersectionObserver. Time-based rather than
+   animation-timeline: view() — the scroll-driven version kept every print
+   (image + mat + blurred shadow) promoted as its own composited layer and
+   sampled against scroll each frame, which stuttered on the way down the
+   page. Without JS nothing is hidden and the prints are simply there. */
+.print-block.will-rise { opacity: 0; }
+.print-block.is-in { animation: mrRise .6s var(--ease-soft) both; }
+.print {
+  position: relative;
+  display: block;
+  margin: 0;
+  border: 1px solid var(--key);
+  background: var(--matbg);
+  padding: clamp(14px, 2.4vw, 24px);
+  box-shadow: var(--shadow);
+  font: inherit;
+  color: inherit;
+  cursor: zoom-in;
+  transition: box-shadow .5s var(--ease), transform .5s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .print:hover { box-shadow: var(--shadow-hover); transform: translateY(-4px); }
+}
+.print:active { transform: translateY(-1px); transition-duration: .12s; }
+/* The plate tone (same as .hero__stage / .about__portrait) fills the photo's
+   reserved box while a lazy image is still downloading, so pixels arrive over
+   a defined plate instead of popping into an empty mat. */
+.print__img { display: block; background: #dedbcf; }
+/* JS-managed load fade (reveal.js): only images still downloading at bind
+   time get is-pending, so cached/complete images never flash. The transition
+   lives on the loaded state — the pending state must snap to 0 instantly. */
+.print__img.is-pending { opacity: 0; }
+.print__img.is-loaded { opacity: 1; transition: opacity .45s ease; }
+/* Portraits: max-constraints on both axes (not a fixed height + object-fit:
+   contain) so the box shrinks to the photo — a fixed-height box letterboxed
+   the image inside its own mat on narrow screens once 86vw clamped the width. */
+/* svh, matching the lightbox: on iOS 100vh includes the space behind the
+   toolbar, so a tall portrait print sized in vh extends underneath it. */
+/* The width is computed rather than left `auto` because `auto` on BOTH axes
+   means the box takes its size from the image's intrinsic dimensions - which
+   a lazy-loaded image doesn't have yet. Portrait prints therefore laid out at
+   0x0 and snapped to full height the instant they decoded, jumping the page
+   under your thumb mid-scroll. --ar is the photo's own ratio, emitted by
+   portfolio.js, so the height cap can be expressed as a width. */
+.print--p .print__img {
+  width: min(86vw, calc(min(70svh, 680px) * var(--ar, 0.7)));
+  height: auto;
+  max-width: 86vw;
+  max-height: min(70svh, 680px);
+}
+.print--l .print__img { width: min(760px, 86vw); height: auto; }
+.print--pano .print__img { width: min(960px, 92vw); height: auto; }
+
+.cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.cap__left { color: var(--ink); }
+.cap__right { color: var(--acc); }
+/* Optional one-line story under the caption — sentence case, in Michael's
+   voice. width:100% drops it onto its own line inside the wrapping flex row. */
+.cap__story {
+  width: 100%;
+  margin-top: 4px;
+  color: var(--muted);
+  letter-spacing: 0;
+  font-style: italic;
+}
+
+.collection__pager {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: clamp(60px, 11vh, 110px);
+  padding-top: 20px;
+  border-top: 1px solid var(--key);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+/* These two sit at opposite ends of a wrapping flex row, so on a narrow
+   screen they stack 12px apart — which makes an undersized target an easy
+   mis-tap as well as a small one. */
+.collection__prev, .collection__next {
+  text-decoration: none;
+  padding: 14px 10px;
+  margin: -14px -10px;
+  transition: color .25s var(--ease), transform .3s var(--ease);
+}
+@media (hover: hover) {
+  .collection__prev:hover { color: var(--ink); transform: translateX(-4px); }
+  .collection__next:hover { color: var(--ink); transform: translateX(4px); }
+}
+.collection__prev:active, .collection__next:active { color: var(--ink); }
+
+/* ---- About -------------------------------------------------------------- */
+.about {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(40px, 6vw, 76px);
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(40px, 7vh, 76px) 24px 0;
+}
+.about__portrait-frame {
+  position: relative;
+  border: 1px solid var(--key);
+  background: var(--matbg);
+  padding: clamp(12px, 2vw, 18px) clamp(12px, 2vw, 18px) clamp(34px, 4vw, 46px);
+  box-shadow: var(--shadow);
+  animation: mrUp .55s var(--ease-soft) both;
+}
+.about__portrait { position: relative; width: min(320px, 76vw); height: 400px; overflow: hidden; background: #dedbcf; }
+.about__portrait-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.about__body { max-width: 470px; padding-top: 4px; animation: mrUp .55s var(--ease-soft) .12s both; }
+/* An <h1> for the document outline, styled as the small mono label the design
+   calls for — hence the margin/weight reset. */
+.about__label { margin: 0; font-family: var(--mono); font-size: 11px; font-weight: 400; letter-spacing: .2em; color: var(--acc); }
+.about__body p { font-size: 18px; line-height: 1.75; margin: 16px 0 0; }
+.about__body p a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--key); transition: color .25s ease, border-color .25s ease; }
+@media (hover: hover) {
+  .about__body p a:hover { color: var(--acc); border-bottom-color: var(--acc); }
+}
+.about__body p:first-of-type { margin-top: 20px; }
+.about__contact {
+  margin: 34px 0 0;
+  border-top: 1px solid var(--key);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.about__contact div { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.about__contact dt { white-space: nowrap; }
+.about__contact dt::after { content: " ·"; }
+/* min-width lets a long value (the prints line) drop onto its own full-width
+   line under the label on narrow screens instead of squeezing beside it */
+.about__contact dd { margin: 0; flex: 1; min-width: 280px; }
+.about__contact a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--key); transition: color .25s ease, border-color .25s ease; }
+@media (hover: hover) {
+  .about__contact a:hover { color: var(--acc); border-bottom-color: var(--acc); }
+}
+
+/* ---- 404 ---------------------------------------------------------------- */
+.notfound {
+  max-width: 470px;
+  margin-inline: auto;
+  padding: clamp(60px, 14vh, 130px) 24px 0;
+  text-align: center;
+  animation: mrUp .5s var(--ease-soft) both;
+}
+.notfound__code { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--acc); }
+.notfound__title { margin: 16px 0 0; font-size: clamp(26px, 4vw, 38px); font-weight: 600; letter-spacing: -.015em; }
+.notfound__note { font-size: 17px; line-height: 1.7; color: var(--muted); margin-top: 14px; }
+.notfound__back {
+  display: inline-block;
+  margin-top: 28px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 14px 12px;
+  transition: color .25s var(--ease), transform .3s var(--ease);
+}
+@media (hover: hover) {
+  .notfound__back:hover { color: var(--ink); transform: translateX(-4px); }
+}
+.notfound__back:active { color: var(--ink); }
+
+/* ---- Footer ------------------------------------------------------------- */
+.footer-inner {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: clamp(56px, 10vh, 96px);
+  /* top/bottom only — a `padding` shorthand here would wipe out .wrap's
+     horizontal padding-inline and let the text hit the screen edge on mobile */
+  padding-top: 20px;
+  /* Clears the iPhone home indicator in the safe area. */
+  padding-bottom: calc(34px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  /* 10.5px was under every mobile legibility guideline; 12px is the floor
+     across the small mono labels now. */
+  font-size: 12px;
+  letter-spacing: .14em;
+  line-height: 1.9;
+  color: var(--muted);
+}
+.footer-link {
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 8px;
+  margin: -12px -8px;
+  transition: color .25s ease, border-color .25s ease;
+}
+@media (hover: hover) {
+  .footer-link:hover { color: var(--acc); border-bottom-color: var(--acc); }
+}
+.footer-link:active { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* ---- Lightbox ----------------------------------------------------------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  cursor: zoom-out;
+  background: rgba(9, 10, 8, .95);
+  animation: mrFade .4s var(--ease-soft) both;
+  /* Without this a downward drag inside the open lightbox chains to the
+     document and fires Android Chrome's pull-to-refresh, reloading the page
+     out from under you. */
+  overscroll-behavior: contain;
+  /* The CSS half of the swipe handling in lightbox.js: horizontal drags are
+     the lightbox's own gesture, so tell the compositor up front rather than
+     letting it wait to see whether a touchmove handler will preventDefault.
+     (There is no touchmove handler, deliberately — see lightbox.js.) */
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+/* --acc is a dark forest green: invisible as a focus ring on the near-black
+   backdrop. */
+.lightbox :focus-visible { outline-color: #d8d2c2; }
+.lightbox[hidden] { display: none; }
+.lightbox.is-closing { animation: mrFadeOut .3s var(--ease-soft) both; pointer-events: none; }
+/* Sized from --ar (the photo's aspect ratio, set in JS) rather than letting
+   the <img>'s own intrinsic resolution drive its box — otherwise swapping
+   from the seed (a smaller, already-loaded resource) to the full-res image
+   changes the element's natural size mid-lightbox and the frame visibly
+   resizes/jumps the moment the upgrade lands, even though it's the same
+   photo at the same aspect ratio the whole time. */
+.lightbox__img {
+  /* svh, not vh: on mobile Safari/Chrome 100vh includes the space behind the
+     browser UI, so an 80vh photo + meta can spill under the toolbar. The vh
+     lines are the fallback for older browsers. */
+  width: min(92vw, calc(80vh * var(--ar, 1.5)));
+  width: min(92vw, calc(76svh * var(--ar, 1.5)));
+  aspect-ratio: var(--ar, 1.5);
+  max-height: 80vh;
+  max-height: 76svh;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, .7);
+}
+.lightbox__img.is-fade { animation: mrFade .35s var(--ease-soft) both; }
+.lightbox__meta { text-align: center; font-family: var(--mono); letter-spacing: .06em; cursor: default; animation: mrFade .5s var(--ease-soft) .3s both; }
+.lightbox__title { font-size: 12px; color: #d8d2c2; }
+.lightbox__loc { font-size: 11px; color: #8a8f75; margin-top: 6px; }
+.lightbox__story { font-size: 11px; color: #8a8f75; margin-top: 8px; max-width: 52ch; font-style: italic; }
+.lightbox__count { font-size: 10.5px; color: #767b62; letter-spacing: .22em; margin-top: 9px; }
+.lightbox__close, .lightbox__nav {
+  position: fixed;
+  background: none;
+  border: 0;
+  color: #8a8f75;
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+  transition: color .25s ease, transform .3s var(--ease);
+}
+/* Padding (not a bigger glyph) takes the tap target past the 44px minimum;
+   the negative margin keeps the cross where the design puts it. env() keeps
+   it clear of a notch / rounded corner. */
+.lightbox__close {
+  top: calc(16px + env(safe-area-inset-top));
+  right: calc(20px + env(safe-area-inset-right));
+  font-size: 30px;
+  padding: 8px 12px;
+  margin: -8px -12px 0 0;
+}
+@media (hover: hover) {
+  .lightbox__close:hover { color: #e6e2d3; }
+}
+.lightbox__nav { top: 50%; transform: translateY(-50%); font-size: 40px; padding: 14px; }
+.lightbox__nav--prev { left: calc(14px + env(safe-area-inset-left)); }
+.lightbox__nav--next { right: calc(14px + env(safe-area-inset-right)); }
+@media (hover: hover) {
+  .lightbox__nav--prev:hover { color: #e6e2d3; transform: translateY(-50%) translateX(-3px); }
+  .lightbox__nav--next:hover { color: #e6e2d3; transform: translateY(-50%) translateX(3px); }
+}
+
+/* Clone used by the FLIP fly transition (created in JS).
+   `transform` is the path flight.js takes whenever the source and destination
+   share an aspect ratio (every lightbox open/close, and most collection
+   navigations) — it animates on the compositor. The left/top/width/height
+   entries are the fallback for an aspect-ratio change, where a uniform scale
+   would squash the photo; those frames cost layout, which is why the fast
+   path exists. transform-origin must stay at the top-left corner: flight.js's
+   translate+scale maths assumes it. */
+.mr-flight {
+  position: fixed;
+  z-index: 70;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  transform-origin: 0 0;
+  box-shadow: 0 14px 40px rgba(20, 24, 18, .3);
+  transition: transform var(--flight-dur) var(--ease),
+    left var(--flight-dur) var(--ease), top var(--flight-dur) var(--ease),
+    width var(--flight-dur) var(--ease), height var(--flight-dur) var(--ease),
+    opacity var(--flight-fade) ease;
+}
+
+/* ---- Responsive --------------------------------------------------------- */
+@media (max-width: 640px) {
+  .hero__title { height: max(240px, 42vh); }
+  .col-row__name { font-size: 18px; }
+  .about { padding-top: clamp(28px, 5vh, 48px); }
+}
+
+/* ---- Reduced motion: static, framed hero, no animation ------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  /* transition-duration matters as much as animation-duration here: the
+     600ms flight clone, the .print hover lift and the 2.4s hero slide
+     crossfade are all transitions, so zeroing animations alone left them
+     moving. */
+  /* Delays have to go too, not just durations. Several of these animations
+     use `both` fill, so an element with a 300ms delay and a zeroed duration
+     still sits at its from-state (opacity 0) for those 300ms — the lightbox
+     meta block and the staggered collection rows both did. */
+  * {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: .001ms !important;
+    transition-delay: 0ms !important;
+  }
+  .hero { height: 100svh; }
+  .hero__sticky { position: static; height: 100svh; }
+  .hero__frame { width: 100% !important; height: 100svh !important; padding: 0 !important; }
+  .hero__cap { display: none; }
+}

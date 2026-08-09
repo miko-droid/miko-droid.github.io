@@ -1,0 +1,6 @@
+_site/
+node_modules/
+originals/
+.DS_Store
+Thumbs.db
+photos/
